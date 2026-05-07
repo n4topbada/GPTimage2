@@ -42,6 +42,7 @@ import {
   permanentlyDeleteHistoryItem,
   getPromptLibrary,
   createPrompt,
+  updatePrompt,
   deletePrompt,
   togglePromptFavorite,
   toggleGalleryFavorite,
@@ -159,15 +160,24 @@ function loadHistoryStripLayout(): HistoryStripLayout {
 
 const CANVAS_EXPORT_BG_KEY = "ima2.canvas.exportBackground.v1";
 
-function loadCanvasExportBackground(): { mode: CanvasExportBackground; matteColor: HexColor } {
-  if (typeof window === "undefined") return { mode: "alpha", matteColor: "#ffffff" };
+function loadCanvasExportBackground(): {
+  mode: CanvasExportBackground;
+  matteColor: HexColor;
+} {
+  if (typeof window === "undefined")
+    return { mode: "alpha", matteColor: "#ffffff" };
   try {
     const raw = window.localStorage.getItem(CANVAS_EXPORT_BG_KEY);
     if (!raw) return { mode: "alpha", matteColor: "#ffffff" };
-    const parsed = JSON.parse(raw) as Partial<{ mode: CanvasExportBackground; matteColor: string }>;
-    const mode: CanvasExportBackground = parsed.mode === "matte" ? "matte" : "alpha";
+    const parsed = JSON.parse(raw) as Partial<{
+      mode: CanvasExportBackground;
+      matteColor: string;
+    }>;
+    const mode: CanvasExportBackground =
+      parsed.mode === "matte" ? "matte" : "alpha";
     const matteColor: HexColor =
-      typeof parsed.matteColor === "string" && /^#[0-9a-fA-F]{6}$/.test(parsed.matteColor)
+      typeof parsed.matteColor === "string" &&
+      /^#[0-9a-fA-F]{6}$/.test(parsed.matteColor)
         ? (parsed.matteColor as HexColor)
         : "#ffffff";
     return { mode, matteColor };
@@ -176,10 +186,16 @@ function loadCanvasExportBackground(): { mode: CanvasExportBackground; matteColo
   }
 }
 
-function persistCanvasExportBackground(mode: CanvasExportBackground, matteColor: HexColor): void {
+function persistCanvasExportBackground(
+  mode: CanvasExportBackground,
+  matteColor: HexColor,
+): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(CANVAS_EXPORT_BG_KEY, JSON.stringify({ mode, matteColor }));
+    window.localStorage.setItem(
+      CANVAS_EXPORT_BG_KEY,
+      JSON.stringify({ mode, matteColor }),
+    );
   } catch {
     /* ignore quota / unavailable */
   }
@@ -232,10 +248,15 @@ const GENERATION_DEFAULTS_STORAGE_KEY = "ima2.generationDefaults";
 
 function resolveThemePreference(theme: ThemePreference): ResolvedTheme {
   if (theme === "dark" || theme === "light") return theme;
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+  if (
+    typeof window === "undefined" ||
+    typeof window.matchMedia !== "function"
+  ) {
     return "dark";
   }
-  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  return window.matchMedia("(prefers-color-scheme: light)").matches
+    ? "light"
+    : "dark";
 }
 
 type PersistedInFlight = {
@@ -273,11 +294,16 @@ type InsertedPrompt = {
   text: string;
 };
 
-function composePrompt(mainPrompt: string, insertedPrompts: InsertedPrompt[]): string {
+function composePrompt(
+  mainPrompt: string,
+  insertedPrompts: InsertedPrompt[],
+): string {
   return [
     ...insertedPrompts.map((prompt) => prompt.text.trim()).filter(Boolean),
     mainPrompt.trim(),
-  ].filter(Boolean).join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function toPersistedInFlightJob(job: ServerInFlightJob): PersistedInFlight {
@@ -285,7 +311,9 @@ function toPersistedInFlightJob(job: ServerInFlightJob): PersistedInFlight {
   const kind =
     job.kind === "classic" || job.kind === "node" || job.kind === "multimode"
       ? job.kind
-      : meta.kind === "classic" || meta.kind === "node" || meta.kind === "multimode"
+      : meta.kind === "classic" ||
+          meta.kind === "node" ||
+          meta.kind === "multimode"
         ? meta.kind
         : undefined;
   return {
@@ -294,19 +322,26 @@ function toPersistedInFlightJob(job: ServerInFlightJob): PersistedInFlight {
     startedAt: job.startedAt,
     phase: typeof job.phase === "string" ? job.phase : undefined,
     sessionId: typeof meta.sessionId === "string" ? meta.sessionId : null,
-    parentNodeId: typeof meta.parentNodeId === "string" ? meta.parentNodeId : null,
-    clientNodeId: typeof meta.clientNodeId === "string" ? meta.clientNodeId : null,
+    parentNodeId:
+      typeof meta.parentNodeId === "string" ? meta.parentNodeId : null,
+    clientNodeId:
+      typeof meta.clientNodeId === "string" ? meta.clientNodeId : null,
     kind,
   };
 }
 
-function terminalJobError(job: ServerTerminalJob): Error & { code?: string; status?: number } {
-  const code = typeof job.errorCode === "string" && job.errorCode
-    ? job.errorCode
-    : "UNKNOWN";
-  const e = new Error(code === "EMPTY_RESPONSE"
-    ? "No image data returned from the image backend."
-    : "Generation failed on the server.") as Error & { code?: string; status?: number };
+function terminalJobError(
+  job: ServerTerminalJob,
+): Error & { code?: string; status?: number } {
+  const code =
+    typeof job.errorCode === "string" && job.errorCode
+      ? job.errorCode
+      : "UNKNOWN";
+  const e = new Error(
+    code === "EMPTY_RESPONSE"
+      ? "No image data returned from the image backend."
+      : "Generation failed on the server.",
+  ) as Error & { code?: string; status?: number };
   e.code = code;
   e.status = typeof job.httpStatus === "number" ? job.httpStatus : undefined;
   return e;
@@ -322,8 +357,11 @@ function loadInFlight(): PersistedInFlight[] {
     return arr
       .filter(
         (x) =>
-          x && typeof x.id === "string" && typeof x.prompt === "string" &&
-          typeof x.startedAt === "number" && now - x.startedAt < INFLIGHT_TTL_MS,
+          x &&
+          typeof x.id === "string" &&
+          typeof x.prompt === "string" &&
+          typeof x.startedAt === "number" &&
+          now - x.startedAt < INFLIGHT_TTL_MS,
       )
       .map((x) => ({
         id: x.id,
@@ -331,9 +369,14 @@ function loadInFlight(): PersistedInFlight[] {
         startedAt: x.startedAt,
         phase: typeof x.phase === "string" ? x.phase : undefined,
         sessionId: typeof x.sessionId === "string" ? x.sessionId : null,
-        parentNodeId: typeof x.parentNodeId === "string" ? x.parentNodeId : null,
-        clientNodeId: typeof x.clientNodeId === "string" ? x.clientNodeId : null,
-        kind: x.kind === "classic" || x.kind === "node" || x.kind === "multimode" ? x.kind : undefined,
+        parentNodeId:
+          typeof x.parentNodeId === "string" ? x.parentNodeId : null,
+        clientNodeId:
+          typeof x.clientNodeId === "string" ? x.clientNodeId : null,
+        kind:
+          x.kind === "classic" || x.kind === "node" || x.kind === "multimode"
+            ? x.kind
+            : undefined,
       }));
   } catch {
     return [];
@@ -403,11 +446,18 @@ type GraphSaveReason =
 type GraphSaveResult = "saved" | "skipped" | "conflict" | "failed";
 
 function narrowGenerateKind(k?: string | null): GenerateItem["kind"] {
-  return k === "classic" || k === "edit" || k === "generate" ||
-    k === "card-news-card" || k === "card-news-set" ? k : null;
+  return k === "classic" ||
+    k === "edit" ||
+    k === "generate" ||
+    k === "card-news-card" ||
+    k === "card-news-set"
+    ? k
+    : null;
 }
 
-function mapHistoryItem(it: Awaited<ReturnType<typeof getHistory>>["items"][number]): GenerateItem {
+function mapHistoryItem(
+  it: Awaited<ReturnType<typeof getHistory>>["items"][number],
+): GenerateItem {
   return {
     image: it.url,
     url: it.url,
@@ -450,7 +500,10 @@ function stripDataUrlPrefix(dataUrl: string): string {
   return dataUrl.replace(/^data:[^;]+;base64,/, "");
 }
 
-async function compressReferenceSource(src: string, filename = "reference.png"): Promise<string> {
+async function compressReferenceSource(
+  src: string,
+  filename = "reference.png",
+): Promise<string> {
   const resp = await fetch(src);
   if (!resp.ok) throw new Error(`reference fetch failed: ${resp.status}`);
   const blob = await resp.blob();
@@ -539,7 +592,9 @@ function mapSessionToGraph(session: SessionFull): {
   const graphNodes: GraphNode[] = session.nodes.map((n) => {
     const d = (n.data ?? {}) as Partial<ImageNodeData>;
     const explicitImageUrl =
-      typeof d.imageUrl === "string" && d.imageUrl.length > 0 ? d.imageUrl : null;
+      typeof d.imageUrl === "string" && d.imageUrl.length > 0
+        ? d.imageUrl
+        : null;
     const fallbackImageUrl =
       typeof d.serverNodeId === "string" && d.serverNodeId.length > 0
         ? `/generated/${d.serverNodeId}.png`
@@ -578,8 +633,10 @@ function mapSessionToGraph(session: SessionFull): {
       id: e.id,
       source: e.source,
       target: e.target,
-      sourceHandle: typeof data.sourceHandle === "string" ? data.sourceHandle : null,
-      targetHandle: typeof data.targetHandle === "string" ? data.targetHandle : null,
+      sourceHandle:
+        typeof data.sourceHandle === "string" ? data.sourceHandle : null,
+      targetHandle:
+        typeof data.targetHandle === "string" ? data.targetHandle : null,
     };
   });
   return {
@@ -674,7 +731,10 @@ type AppState = {
   toast: ToastState;
   customSizeConfirm: CustomSizeConfirmState;
   metadataRestore: MetadataRestoreState;
-  readDroppedImageMetadata: (file: File, targetNodeId?: ClientNodeId | null) => Promise<boolean>;
+  readDroppedImageMetadata: (
+    file: File,
+    targetNodeId?: ClientNodeId | null,
+  ) => Promise<boolean>;
   applyMetadataRestore: () => void;
   cancelMetadataRestore: () => void;
   addMetadataRestoreAsReference: () => void;
@@ -746,8 +806,14 @@ type AppState = {
   clearNodeReferences: (clientId: ClientNodeId) => void;
   generateNode: (clientId: ClientNodeId) => Promise<void>;
   generateNodeInPlace: (clientId: ClientNodeId) => Promise<void>;
-  generateNodeVariation: (clientId: ClientNodeId, sizeOverride?: string) => Promise<void>;
-  runGenerateNode: (clientId: ClientNodeId, sizeOverride?: string) => Promise<void>;
+  generateNodeVariation: (
+    clientId: ClientNodeId,
+    sizeOverride?: string,
+  ) => Promise<void>;
+  runGenerateNode: (
+    clientId: ClientNodeId,
+    sizeOverride?: string,
+  ) => Promise<void>;
   runGenerateNodeInPlace: (
     clientId: ClientNodeId,
     options?: {
@@ -811,18 +877,44 @@ type AppState = {
   cancelCustomSizeAdjustment: () => void;
   hydrateHistory: () => void;
   showToast: (message: string, error?: boolean) => void;
-  errorCard: { code: ImaErrorCode; fallbackMessage?: string; id: number } | null;
-  showErrorCard: (code: ImaErrorCode, params?: { fallbackMessage?: string }) => void;
+  errorCard: {
+    code: ImaErrorCode;
+    fallbackMessage?: string;
+    id: number;
+  } | null;
+  showErrorCard: (
+    code: ImaErrorCode,
+    params?: { fallbackMessage?: string },
+  ) => void;
   dismissErrorCard: () => void;
   getResolvedSize: () => string;
 
   // Prompt Library (0.23)
   promptLibraryOpen: boolean;
   togglePromptLibrary: () => void;
-  promptLibrary: { prompts: import("../lib/api").PromptItem[]; folders: import("../lib/api").PromptFolder[] };
+  promptLibrary: {
+    prompts: import("../lib/api").PromptItem[];
+    folders: import("../lib/api").PromptFolder[];
+  };
   promptLibraryLoading: boolean;
   loadPromptLibrary: () => Promise<void>;
-  savePromptToLibrary: (payload: { name?: string; text: string; tags?: string[]; folderId?: string; mode?: "auto" | "direct" }) => Promise<void>;
+  savePromptToLibrary: (payload: {
+    name?: string;
+    text: string;
+    tags?: string[];
+    folderId?: string;
+    mode?: "auto" | "direct";
+  }) => Promise<void>;
+  updatePromptInLibrary: (
+    id: string,
+    payload: Partial<{
+      name: string;
+      text: string;
+      tags: string[];
+      folderId: string;
+      mode: "auto" | "direct";
+    }>,
+  ) => Promise<void>;
   deletePromptFromLibrary: (id: string) => Promise<void>;
   togglePromptFavorite: (id: string) => Promise<void>;
   importPromptsToLibrary: (files: File[]) => Promise<void>;
@@ -872,9 +964,14 @@ const SIZE_PRESET_VALUES = new Set<SizePreset>([
   "custom",
 ]);
 
-function parseMetadataSize(size?: string | null): { preset?: SizePreset; w?: number; h?: number } {
+function parseMetadataSize(size?: string | null): {
+  preset?: SizePreset;
+  w?: number;
+  h?: number;
+} {
   if (typeof size !== "string") return {};
-  if (SIZE_PRESET_VALUES.has(size as SizePreset)) return { preset: size as SizePreset };
+  if (SIZE_PRESET_VALUES.has(size as SizePreset))
+    return { preset: size as SizePreset };
   const match = /^(\d+)x(\d+)$/.exec(size);
   if (!match) return {};
   const w = Number(match[1]);
@@ -904,15 +1001,21 @@ function isPromptMode(value: unknown): value is "auto" | "direct" {
 }
 
 function isSizePreset(value: unknown): value is SizePreset {
-  return typeof value === "string" && SIZE_PRESET_VALUES.has(value as SizePreset);
+  return (
+    typeof value === "string" && SIZE_PRESET_VALUES.has(value as SizePreset)
+  );
 }
 
 function isInsertedPromptArray(value: unknown): value is InsertedPrompt[] {
-  return Array.isArray(value) && value.every((item) =>
-    item &&
-    typeof item.id === "string" &&
-    typeof item.name === "string" &&
-    typeof item.text === "string",
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        item &&
+        typeof item.id === "string" &&
+        typeof item.name === "string" &&
+        typeof item.text === "string",
+    )
   );
 }
 
@@ -949,7 +1052,8 @@ function loadGenerationDefaults(): GenerationDefaults {
     }
     if (isFormat(parsed.format)) out.format = parsed.format;
     if (isModeration(parsed.moderation)) out.moderation = parsed.moderation;
-    if (typeof parsed.count === "number") out.count = normalizeCount(parsed.count);
+    if (typeof parsed.count === "number")
+      out.count = normalizeCount(parsed.count);
     if (typeof parsed.multimode === "boolean") out.multimode = parsed.multimode;
     if (typeof parsed.multimodeMaxImages === "number") {
       out.multimodeMaxImages = normalizeCount(parsed.multimodeMaxImages);
@@ -1078,7 +1182,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
     const valid = results.filter((x): x is string => !!x);
     set((s) => ({
-      referenceImages: [...s.referenceImages, ...valid].slice(0, MAX_REFERENCE_IMAGES),
+      referenceImages: [...s.referenceImages, ...valid].slice(
+        0,
+        MAX_REFERENCE_IMAGES,
+      ),
     }));
     if (heicSkipped.length > 0) {
       get().showToast(t("toast.refHeicUnsupported"), true);
@@ -1158,10 +1265,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({
       referenceImages: s.referenceImages.filter((_, i) => i !== index),
       canvasReferenceImage:
-        s.referenceImages[index] === s.canvasReferenceImage ? null : s.canvasReferenceImage,
+        s.referenceImages[index] === s.canvasReferenceImage
+          ? null
+          : s.canvasReferenceImage,
     }));
   },
-  clearReferences: () => set({ referenceImages: [], canvasReferenceImage: null }),
+  clearReferences: () =>
+    set({ referenceImages: [], canvasReferenceImage: null }),
   attachCanvasVersionReference: async (item) => {
     let dataUrl: string;
     try {
@@ -1180,7 +1290,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       const withoutDuplicate = withoutPrevious.filter((ref) => ref !== dataUrl);
       return {
         canvasReferenceImage: dataUrl,
-        referenceImages: [dataUrl, ...withoutDuplicate].slice(0, MAX_REFERENCE_IMAGES),
+        referenceImages: [dataUrl, ...withoutDuplicate].slice(
+          0,
+          MAX_REFERENCE_IMAGES,
+        ),
       };
     });
     get().showToast(t("canvas.version.usingAsReference"));
@@ -1197,13 +1310,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     let dataUrl: string;
     try {
-      dataUrl = await compressReferenceSource(cur.image, cur.filename || "current-reference.png");
+      dataUrl = await compressReferenceSource(
+        cur.image,
+        cur.filename || "current-reference.png",
+      );
     } catch {
       get().showToast(t("toast.currentImageLoadFailed"), true);
       return;
     }
     set((s) => ({
-      referenceImages: [...s.referenceImages, dataUrl].slice(0, MAX_REFERENCE_IMAGES),
+      referenceImages: [...s.referenceImages, dataUrl].slice(
+        0,
+        MAX_REFERENCE_IMAGES,
+      ),
     }));
     get().showToast(t("toast.addedCurrentAsRef"));
   },
@@ -1214,13 +1333,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     let dataUrl: string;
     try {
-      dataUrl = await compressReferenceSource(item.image, item.filename || "canvas-reference.png");
+      dataUrl = await compressReferenceSource(
+        item.image,
+        item.filename || "canvas-reference.png",
+      );
     } catch {
       get().showToast(t("toast.currentImageLoadFailed"), true);
       return;
     }
     set((s) => ({
-      referenceImages: [...s.referenceImages, dataUrl].slice(0, MAX_REFERENCE_IMAGES),
+      referenceImages: [...s.referenceImages, dataUrl].slice(
+        0,
+        MAX_REFERENCE_IMAGES,
+      ),
     }));
     get().showToast(t("toast.addedCurrentAsRef"));
   },
@@ -1243,9 +1368,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       let scopedActiveServerIds = new Set<string>();
       // Merge server-side phase info so the spinner label reflects real progress
       try {
-        const inflightKind: "classic" | "node" = get().uiMode === "node" ? "node" : "classic";
+        const inflightKind: "classic" | "node" =
+          get().uiMode === "node" ? "node" : "classic";
         const inflightSessionId =
-          inflightKind === "node" ? get().activeSessionId ?? undefined : undefined;
+          inflightKind === "node"
+            ? (get().activeSessionId ?? undefined)
+            : undefined;
         const { jobs, terminalJobs = [] } = await getInflight({
           kind: inflightKind,
           sessionId: inflightSessionId,
@@ -1253,8 +1381,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         });
         scopedActiveServerIds = new Set(jobs.map((j) => j.requestId));
         const byId = new Map(jobs.map((j) => [j.requestId, j] as const));
-        const terminalById = new Map((terminalJobs as ServerTerminalJob[]).map((j) => [j.requestId, j] as const));
-        const terminalErrors: Array<Error & { code?: string; status?: number }> = [];
+        const terminalById = new Map(
+          (terminalJobs as ServerTerminalJob[]).map(
+            (j) => [j.requestId, j] as const,
+          ),
+        );
+        const terminalErrors: Array<
+          Error & { code?: string; status?: number }
+        > = [];
         let changed = false;
         const now0 = Date.now();
         const GRACE_MS = 5000;
@@ -1322,7 +1456,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
         if (changed) {
           saveInFlight(nextInflight);
-          set({ inFlight: nextInflight, activeGenerations: nextInflight.length });
+          set({
+            inFlight: nextInflight,
+            activeGenerations: nextInflight.length,
+          });
         }
         for (const err of terminalErrors) {
           handleError(err, get());
@@ -1330,10 +1467,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       } catch {}
       try {
         const lastKnown = get().history.reduce(
-          (max, it) => (it.createdAt && it.createdAt > max ? it.createdAt : max),
+          (max, it) =>
+            it.createdAt && it.createdAt > max ? it.createdAt : max,
           0,
         );
-        const { items } = await getHistory({ limit: HISTORY_LIMIT, since: lastKnown });
+        const { items } = await getHistory({
+          limit: HISTORY_LIMIT,
+          since: lastKnown,
+        });
         const arr: GenerateItem[] = items.map(mapHistoryItem);
         const existing = get().history;
         const fresh = arr.filter(
@@ -1345,8 +1486,12 @@ export const useAppStore = create<AppState>((set, get) => ({
             if (!s.currentImage && fresh[0]?.filename) {
               saveSelectedFilename(fresh[0].filename);
             }
+            const reallyFresh = fresh.filter(
+              (a) =>
+                !s.history.some((h) => a.filename && h.filename === a.filename),
+            );
             return {
-              history: [...fresh, ...s.history].slice(0, HISTORY_LIMIT),
+              history: [...reallyFresh, ...s.history].slice(0, HISTORY_LIMIT),
               currentImage: nextCurrent,
             };
           });
@@ -1357,7 +1502,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         // is also unreliable when the same prompt is queued twice.
         const now = Date.now();
         const remaining = get().inFlight.filter(
-          (f) => scopedActiveServerIds.has(f.id) || now - f.startedAt < INFLIGHT_TTL_MS,
+          (f) =>
+            scopedActiveServerIds.has(f.id) ||
+            now - f.startedAt < INFLIGHT_TTL_MS,
         );
         if (remaining.length !== get().inFlight.length) {
           saveInFlight(remaining);
@@ -1371,15 +1518,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const inflightKind = get().uiMode === "node" ? "node" : "classic";
       const inflightSessionId =
-        inflightKind === "node" ? get().activeSessionId ?? undefined : undefined;
+        inflightKind === "node"
+          ? (get().activeSessionId ?? undefined)
+          : undefined;
       const { jobs, terminalJobs = [] } = await getInflight({
         kind: inflightKind,
         sessionId: inflightSessionId,
         includeTerminal: true,
       });
       const serverById = new Map(jobs.map((j) => [j.requestId, j] as const));
-      const terminalById = new Map((terminalJobs as ServerTerminalJob[]).map((j) => [j.requestId, j] as const));
-      const terminalErrors: Array<Error & { code?: string; status?: number }> = [];
+      const terminalById = new Map(
+        (terminalJobs as ServerTerminalJob[]).map(
+          (j) => [j.requestId, j] as const,
+        ),
+      );
+      const terminalErrors: Array<Error & { code?: string; status?: number }> =
+        [];
       const now = Date.now();
       const currentLocal = get().inFlight;
       const local = currentLocal.length > 0 ? currentLocal : loadInFlight();
@@ -1432,14 +1586,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     const nextImageModel = loadImageModel();
     set((s) => {
       const matched = nextSelected
-        ? s.history.find((h) => h.filename === nextSelected) ?? null
+        ? (s.history.find((h) => h.filename === nextSelected) ?? null)
         : null;
       const normalized = matched
         ? resolveVisibleShortcutCurrent(s.history, matched)
         : null;
       const visibleFallback = getVisibleGalleryItems(s.history)[0] ?? null;
       const currentImage = s.currentImage?.canvasVersion
-        ? resolveVisibleShortcutCurrent(s.history, s.currentImage) ?? visibleFallback
+        ? (resolveVisibleShortcutCurrent(s.history, s.currentImage) ??
+          visibleFallback)
         : s.currentImage;
       return {
         inFlight: nextInflight,
@@ -1447,7 +1602,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         imageModel: nextImageModel,
         currentImage:
           nextSelected && currentImage?.filename !== nextSelected
-            ? normalized ?? currentImage
+            ? (normalized ?? currentImage)
             : currentImage,
       };
     });
@@ -1455,13 +1610,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   currentImage: null,
   applyMergedCanvasImage: (item) => {
-    set((s) => ({
-      history: item.filename
-        ? s.history.some((h) => h.filename === item.filename)
-          ? s.history.map((h) => (h.filename === item.filename ? item : h))
-          : [item, ...s.history].slice(0, HISTORY_LIMIT)
-        : s.history,
-    }));
+    set((s) => {
+      if (!item.filename) return { history: s.history };
+      const filtered = s.history.filter((h) => h.filename !== item.filename);
+      return {
+        history: [item, ...filtered].slice(0, HISTORY_LIMIT),
+      };
+    });
   },
   addGeneratedHistoryItem: async (item) => {
     await addHistory(item, set, get);
@@ -1499,17 +1654,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   toggleSettings: () =>
     set((s) => ({
       settingsOpen: !s.settingsOpen,
-      activeSettingsSection: s.settingsOpen ? s.activeSettingsSection : "account",
+      activeSettingsSection: s.settingsOpen
+        ? s.activeSettingsSection
+        : "account",
     })),
-  setActiveSettingsSection: (section) => set({ activeSettingsSection: section }),
+  setActiveSettingsSection: (section) =>
+    set({ activeSettingsSection: section }),
 
   uiMode: loadUIMode(),
   setUIMode: (m) => {
     const next =
-      m === "card-news" && !ENABLE_CARD_NEWS_MODE ? "classic" :
-        m === "node" && !ENABLE_NODE_MODE ? "classic" :
-          m;
-    try { localStorage.setItem("ima2.uiMode", next); } catch {}
+      m === "card-news" && !ENABLE_CARD_NEWS_MODE
+        ? "classic"
+        : m === "node" && !ENABLE_NODE_MODE
+          ? "classic"
+          : m;
+    try {
+      localStorage.setItem("ima2.uiMode", next);
+    } catch {}
     set({ uiMode: next });
   },
 
@@ -1555,11 +1717,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   graphNodes: [],
   graphEdges: [],
   setGraphNodes: (graphNodes) => {
-    set({ graphNodes: deriveParentServerNodeIds(graphNodes, get().graphEdges) });
+    set({
+      graphNodes: deriveParentServerNodeIds(graphNodes, get().graphEdges),
+    });
     get().scheduleGraphSave();
   },
   setGraphEdges: (graphEdges) => {
-    set({ graphEdges, graphNodes: deriveParentServerNodeIds(get().graphNodes, graphEdges) });
+    set({
+      graphEdges,
+      graphNodes: deriveParentServerNodeIds(get().graphNodes, graphEdges),
+    });
     get().scheduleGraphSave();
   },
   disconnectEdge: (edgeId) => {
@@ -1568,15 +1735,23 @@ export const useAppStore = create<AppState>((set, get) => ({
   disconnectEdges: (edgeIds) => {
     const edgeIdSet = new Set(edgeIds);
     if (edgeIdSet.size === 0) return;
-    const removedEdges = get().graphEdges.filter((edge) => edgeIdSet.has(edge.id));
+    const removedEdges = get().graphEdges.filter((edge) =>
+      edgeIdSet.has(edge.id),
+    );
     if (removedEdges.length === 0) return;
-    const nextEdges = get().graphEdges.filter((edge) => !edgeIdSet.has(edge.id));
+    const nextEdges = get().graphEdges.filter(
+      (edge) => !edgeIdSet.has(edge.id),
+    );
     const removedTargets = new Set(removedEdges.map((edge) => edge.target));
     const nextNodes = get().graphNodes.map((node) => {
       if (!removedTargets.has(node.id)) return node;
-      const remainingIncoming = nextEdges.find((edge) => edge.target === node.id);
+      const remainingIncoming = nextEdges.find(
+        (edge) => edge.target === node.id,
+      );
       const remainingParent = remainingIncoming
-        ? get().graphNodes.find((candidate) => candidate.id === remainingIncoming.source)
+        ? get().graphNodes.find(
+            (candidate) => candidate.id === remainingIncoming.source,
+          )
         : null;
       return {
         ...node,
@@ -1586,7 +1761,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         },
       };
     });
-    set({ graphNodes: deriveParentServerNodeIds(nextNodes, nextEdges), graphEdges: nextEdges });
+    set({
+      graphNodes: deriveParentServerNodeIds(nextNodes, nextEdges),
+      graphEdges: nextEdges,
+    });
     get().scheduleGraphSave();
     void get().flushGraphSave("edge-disconnect");
     get().showToast(t("edge.disconnected"));
@@ -1598,15 +1776,27 @@ export const useAppStore = create<AppState>((set, get) => ({
     const next = !get().nodeSelectionMode;
     set({
       nodeSelectionMode: next,
-      ...(next ? {} : { graphNodes: applySelectedNodeIds(get().graphNodes, []) }),
+      ...(next
+        ? {}
+        : { graphNodes: applySelectedNodeIds(get().graphNodes, []) }),
     });
   },
   selectAllGraphNodes: () => {
-    set({ graphNodes: applySelectedNodeIds(get().graphNodes, get().graphNodes.map((n) => n.id)) });
+    set({
+      graphNodes: applySelectedNodeIds(
+        get().graphNodes,
+        get().graphNodes.map((n) => n.id),
+      ),
+    });
   },
   selectNodeGraph: (clientId, additive) => {
     set({
-      graphNodes: applyComponentSelection(get().graphNodes, get().graphEdges, clientId, additive),
+      graphNodes: applyComponentSelection(
+        get().graphNodes,
+        get().graphEdges,
+        clientId,
+        additive,
+      ),
     });
   },
   clearNodeSelection: () => {
@@ -1630,7 +1820,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       const current = get().activeSessionId;
       if (!current) {
         const savedId = loadActiveSessionId();
-        const savedExists = savedId ? sessions.some((s) => s.id === savedId) : false;
+        const savedExists = savedId
+          ? sessions.some((s) => s.id === savedId)
+          : false;
         if (savedId && savedExists) {
           await get().switchSession(savedId);
         } else {
@@ -1647,7 +1839,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().flushGraphSave("switch-session");
     try {
       const { session } = await apiGetSession(id);
-      const { graphNodes, graphEdges, graphVersion } = mapSessionToGraph(session);
+      const { graphNodes, graphEdges, graphVersion } =
+        mapSessionToGraph(session);
       set({
         activeSessionId: id,
         activeSessionGraphVersion: graphVersion,
@@ -1660,7 +1853,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       // reconcileGraphPending already calls recoverGraphNodesFromHistory at the
       // end, but we await it explicitly here so any subsequent tick sees the
       // recovered state.
-      await get().reconcileGraphPending().catch(() => {});
+      await get()
+        .reconcileGraphPending()
+        .catch(() => {});
     } catch (err) {
       console.warn("[sessions] switch failed:", err);
       set({ sessionLoading: false });
@@ -1672,7 +1867,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const sid = get().activeSessionId;
     if (!sid) return;
     const pendingNodes = get().graphNodes.filter(
-      (n) => n.data?.pendingRequestId && (n.data.status === "pending" || n.data.status === "reconciling"),
+      (n) =>
+        n.data?.pendingRequestId &&
+        (n.data.status === "pending" || n.data.status === "reconciling"),
     );
     if (pendingNodes.length > 0) {
       let jobs: Array<{ requestId: string; phase?: string }> = [];
@@ -1690,12 +1887,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       const next = get().graphNodes.map((n) => {
         const reqId = n.data?.pendingRequestId;
         if (!reqId) return n;
-        if (n.data.status !== "pending" && n.data.status !== "reconciling") return n;
+        if (n.data.status !== "pending" && n.data.status !== "reconciling")
+          return n;
         if (byId.has(reqId)) {
           const phase = byId.get(reqId) ?? null;
           return {
             ...n,
-            data: { ...n.data, status: "reconciling" as const, pendingPhase: phase },
+            data: {
+              ...n.data,
+              status: "reconciling" as const,
+              pendingPhase: phase,
+            },
           };
         }
         // Not in-flight anymore. Apply B grace window if we know when it started —
@@ -1800,17 +2002,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       id: clientId,
       type: "imageNode",
       position: getNextRootPosition(get().graphNodes),
-        data: {
-          clientId,
-          serverNodeId: null,
-          parentServerNodeId: null,
-          prompt: "",
-          imageUrl: null,
-          status: "empty",
-          pendingRequestId: null,
-          pendingPhase: null,
-        },
-      };
+      data: {
+        clientId,
+        serverNodeId: null,
+        parentServerNodeId: null,
+        prompt: "",
+        imageUrl: null,
+        status: "empty",
+        pendingRequestId: null,
+        pendingPhase: null,
+      },
+    };
     set({ graphNodes: [...get().graphNodes, node] });
     get().scheduleGraphSave();
     return clientId;
@@ -1823,20 +2025,29 @@ export const useAppStore = create<AppState>((set, get) => ({
     const node: GraphNode = {
       id: clientId,
       type: "imageNode",
-      position: getNextChildPosition(parent, get().graphNodes, get().graphEdges),
-        data: {
-          clientId,
-          serverNodeId: null,
-          parentServerNodeId: parent.data.serverNodeId,
-          prompt: "",
-          imageUrl: null,
-          status: "empty",
-          pendingRequestId: null,
-          pendingPhase: null,
-        },
+      position: getNextChildPosition(
+        parent,
+        get().graphNodes,
+        get().graphEdges,
+      ),
+      data: {
+        clientId,
+        serverNodeId: null,
+        parentServerNodeId: parent.data.serverNodeId,
+        prompt: "",
+        imageUrl: null,
+        status: "empty",
+        pendingRequestId: null,
+        pendingPhase: null,
+      },
     };
     const edge: GraphEdge = {
-      id: newGraphEdgeId(parentClientId, clientId, DEFAULT_CHILD_SOURCE_HANDLE, DEFAULT_CHILD_TARGET_HANDLE),
+      id: newGraphEdgeId(
+        parentClientId,
+        clientId,
+        DEFAULT_CHILD_SOURCE_HANDLE,
+        DEFAULT_CHILD_TARGET_HANDLE,
+      ),
       source: parentClientId,
       target: clientId,
       sourceHandle: DEFAULT_CHILD_SOURCE_HANDLE,
@@ -1854,7 +2065,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const source = get().graphNodes.find((n) => n.id === sourceClientId);
     if (!source) return sourceClientId;
 
-    const incomingEdge = get().graphEdges.find((e) => e.target === sourceClientId);
+    const incomingEdge = get().graphEdges.find(
+      (e) => e.target === sourceClientId,
+    );
     if (!incomingEdge) {
       const clientId = newClientNodeId();
       const node: GraphNode = {
@@ -1885,7 +2098,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     const node: GraphNode = {
       id: clientId,
       type: "imageNode",
-      position: getNextChildPosition(parent, get().graphNodes, get().graphEdges),
+      position: getNextChildPosition(
+        parent,
+        get().graphNodes,
+        get().graphEdges,
+      ),
       data: {
         clientId,
         serverNodeId: null,
@@ -1898,7 +2115,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       },
     };
     const edge: GraphEdge = {
-      id: newGraphEdgeId(parentClientId, clientId, DEFAULT_CHILD_SOURCE_HANDLE, DEFAULT_CHILD_TARGET_HANDLE),
+      id: newGraphEdgeId(
+        parentClientId,
+        clientId,
+        DEFAULT_CHILD_SOURCE_HANDLE,
+        DEFAULT_CHILD_TARGET_HANDLE,
+      ),
       source: parentClientId,
       target: clientId,
       sourceHandle: DEFAULT_CHILD_SOURCE_HANDLE,
@@ -1949,23 +2171,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (valid.length > 0) {
       const sessionId = get().activeSessionId;
       set({
-        graphNodes: get().graphNodes.map((n) =>
-          {
-            if (n.id !== clientId) return n;
-            const refs = [
-              ...(n.data.referenceImages ?? []),
-              ...valid,
-            ].slice(0, MAX_REFERENCE_IMAGES);
-            saveNodeRefs(sessionId, clientId, refs);
-            return {
-                ...n,
-                data: {
-                  ...n.data,
-                  referenceImages: refs,
-                },
-              };
-          },
-        ),
+        graphNodes: get().graphNodes.map((n) => {
+          if (n.id !== clientId) return n;
+          const refs = [...(n.data.referenceImages ?? []), ...valid].slice(
+            0,
+            MAX_REFERENCE_IMAGES,
+          );
+          saveNodeRefs(sessionId, clientId, refs);
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              referenceImages: refs,
+            },
+          };
+        }),
       });
       get().scheduleGraphSave();
     }
@@ -2007,15 +2227,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({
       graphNodes: get().graphNodes.map((n) => {
         if (n.id !== clientId) return n;
-        const refs = (n.data.referenceImages ?? []).filter((_, i) => i !== index);
+        const refs = (n.data.referenceImages ?? []).filter(
+          (_, i) => i !== index,
+        );
         saveNodeRefs(get().activeSessionId, clientId, refs);
         return {
-              ...n,
-              data: {
-                ...n.data,
-                referenceImages: refs,
-              },
-            };
+          ...n,
+          data: {
+            ...n.data,
+            referenceImages: refs,
+          },
+        };
       }),
     });
     get().scheduleGraphSave();
@@ -2043,7 +2265,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const source = get().graphNodes.find((n) => n.id === sourceClientId);
     if (!source) return sourceClientId;
     const clientId = newClientNodeId();
-    const rootSiblings = get().graphNodes.filter((n) => !n.data.parentServerNodeId).length;
+    const rootSiblings = get().graphNodes.filter(
+      (n) => !n.data.parentServerNodeId,
+    ).length;
     const node: GraphNode = {
       id: clientId,
       type: "imageNode",
@@ -2070,7 +2294,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       const sourceUrl = source.data.imageUrl;
       (async () => {
         try {
-          const dataUrl = await compressReferenceSource(sourceUrl, "node-reference.png");
+          const dataUrl = await compressReferenceSource(
+            sourceUrl,
+            "node-reference.png",
+          );
           set({
             graphNodes: get().graphNodes.map((n) =>
               n.id === clientId
@@ -2100,7 +2327,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().showToast(t("toast.promptRequired"), true);
       return;
     }
-    const pending = getCustomSizeConfirmation(get(), { kind: "node", clientId });
+    const pending = getCustomSizeConfirmation(get(), {
+      kind: "node",
+      clientId,
+    });
     if (pending) {
       set({ customSizeConfirm: pending });
       return;
@@ -2115,7 +2345,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().showToast(t("toast.promptRequired"), true);
       return;
     }
-    const pending = getCustomSizeConfirmation(get(), { kind: "node-in-place", clientId });
+    const pending = getCustomSizeConfirmation(get(), {
+      kind: "node-in-place",
+      clientId,
+    });
     if (pending) {
       set({ customSizeConfirm: pending });
       return;
@@ -2131,7 +2364,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
     if (!sizeOverride) {
-      const pending = getCustomSizeConfirmation(get(), { kind: "node-variation", clientId });
+      const pending = getCustomSizeConfirmation(get(), {
+        kind: "node-variation",
+        clientId,
+      });
       if (pending) {
         set({ customSizeConfirm: pending });
         return;
@@ -2143,16 +2379,26 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   async runGenerateNode(clientId, sizeOverride) {
     const requestedNode = get().graphNodes.find((n) => n.id === clientId);
-    const targetClientId = requestedNode?.data.status === "ready"
-      ? get().addSiblingNode(clientId)
-      : clientId;
+    const targetClientId =
+      requestedNode?.data.status === "ready"
+        ? get().addSiblingNode(clientId)
+        : clientId;
     await get().runGenerateNodeInPlace(targetClientId, { sizeOverride });
   },
 
   async runGenerateNodeInPlace(clientId, options = {}) {
     const beforeRepair = get().graphNodes;
-    const repairedNodes = deriveParentServerNodeIds(beforeRepair, get().graphEdges);
-    if (repairedNodes.some((n, i) => n.data.parentServerNodeId !== beforeRepair[i]?.data.parentServerNodeId)) {
+    const repairedNodes = deriveParentServerNodeIds(
+      beforeRepair,
+      get().graphEdges,
+    );
+    if (
+      repairedNodes.some(
+        (n, i) =>
+          n.data.parentServerNodeId !==
+          beforeRepair[i]?.data.parentServerNodeId,
+      )
+    ) {
       set({ graphNodes: repairedNodes });
     }
     const node = repairedNodes.find((n) => n.id === clientId);
@@ -2220,61 +2466,64 @@ export const useAppStore = create<AppState>((set, get) => ({
     let graphMutated = true; // pending set above already mutated the graph if same-session
 
     try {
-      const res = await postNodeGenerateStream({
-        parentNodeId: effectiveParentServerNodeId,
-        prompt,
-        quality: s.quality,
-        size,
-        format: s.format,
-        moderation: s.moderation,
-        model: s.imageModel,
-        reasoningEffort: s.reasoningEffort,
-        requestId: flightId,
-        sessionId: requestSessionId,
-        clientNodeId: clientId,
-        contextMode: "parent-plus-refs",
-        searchMode: s.webSearchEnabled ? "on" : "off",
-        webSearchEnabled: s.webSearchEnabled,
-        ...(nodeRefs.length
-          ? { references: nodeRefs.map(stripDataUrlPrefix) }
-          : {}),
-      }, {
-        onPartial: (partial) => {
-          if (get().activeSessionId !== requestSessionId) return;
-          set({
-            graphNodes: get().graphNodes.map((n) =>
-              n.id === clientId
-                ? {
-                    ...n,
-                    data: {
-                      ...n.data,
-                      status: "pending",
-                      partialImageUrl: partial.image,
-                      pendingPhase: "partial",
-                    },
-                  }
-                : n,
-            ),
-          });
+      const res = await postNodeGenerateStream(
+        {
+          parentNodeId: effectiveParentServerNodeId,
+          prompt,
+          quality: s.quality,
+          size,
+          format: s.format,
+          moderation: s.moderation,
+          model: s.imageModel,
+          reasoningEffort: s.reasoningEffort,
+          requestId: flightId,
+          sessionId: requestSessionId,
+          clientNodeId: clientId,
+          contextMode: "parent-plus-refs",
+          searchMode: s.webSearchEnabled ? "on" : "off",
+          webSearchEnabled: s.webSearchEnabled,
+          ...(nodeRefs.length
+            ? { references: nodeRefs.map(stripDataUrlPrefix) }
+            : {}),
         },
-        onPhase: (phase) => {
-          if (get().activeSessionId !== requestSessionId) return;
-          if (!phase.phase) return;
-          set({
-            graphNodes: get().graphNodes.map((n) =>
-              n.id === clientId
-                ? {
-                    ...n,
-                    data: {
-                      ...n.data,
-                      pendingPhase: phase.phase ?? n.data.pendingPhase,
-                    },
-                  }
-                : n,
-            ),
-          });
+        {
+          onPartial: (partial) => {
+            if (get().activeSessionId !== requestSessionId) return;
+            set({
+              graphNodes: get().graphNodes.map((n) =>
+                n.id === clientId
+                  ? {
+                      ...n,
+                      data: {
+                        ...n.data,
+                        status: "pending",
+                        partialImageUrl: partial.image,
+                        pendingPhase: "partial",
+                      },
+                    }
+                  : n,
+              ),
+            });
+          },
+          onPhase: (phase) => {
+            if (get().activeSessionId !== requestSessionId) return;
+            if (!phase.phase) return;
+            set({
+              graphNodes: get().graphNodes.map((n) =>
+                n.id === clientId
+                  ? {
+                      ...n,
+                      data: {
+                        ...n.data,
+                        pendingPhase: phase.phase ?? n.data.pendingPhase,
+                      },
+                    }
+                  : n,
+              ),
+            });
+          },
         },
-      });
+      );
       if (get().activeSessionId === requestSessionId) {
         set({
           graphNodes: get().graphNodes.map((n) => {
@@ -2302,14 +2551,20 @@ export const useAppStore = create<AppState>((set, get) => ({
         });
         graphMutated = true;
         if (!options.suppressToast) {
-          get().showToast(t("toast.nodeCreated", { id: res.nodeId.slice(0, 8), elapsed: res.elapsed }));
+          get().showToast(
+            t("toast.nodeCreated", {
+              id: res.nodeId.slice(0, 8),
+              elapsed: res.elapsed,
+            }),
+          );
         }
       }
       return res.nodeId;
       // cross-session: result will be restored via recoverGraphNodesFromHistory
       // when the user returns to the originating session.
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("toast.nodeCreateFailed");
+      const msg =
+        err instanceof Error ? err.message : t("toast.nodeCreateFailed");
       if (get().activeSessionId === requestSessionId) {
         set({
           graphNodes: get().graphNodes.map((n) =>
@@ -2359,12 +2614,23 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().showToast(t("nodeBatch.noneSelected"), true);
       return;
     }
-    const blocked = validateBatchDependencies(get().graphNodes, get().graphEdges, selectedIds);
+    const blocked = validateBatchDependencies(
+      get().graphNodes,
+      get().graphEdges,
+      selectedIds,
+    );
     if (blocked.length > 0) {
-      get().showToast(t("nodeBatch.parentRequired", { count: blocked.length }), true);
+      get().showToast(
+        t("nodeBatch.parentRequired", { count: blocked.length }),
+        true,
+      );
       return;
     }
-    const orderedIds = topologicalSortSelected(get().graphNodes, get().graphEdges, selectedIds);
+    const orderedIds = topologicalSortSelected(
+      get().graphNodes,
+      get().graphEdges,
+      selectedIds,
+    );
     const selectedSet = new Set(selectedIds);
     const candidates = orderedIds.filter((id) => {
       if (mode === "regenerate-all") return true;
@@ -2384,22 +2650,38 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (get().nodeBatchStopping) break;
         const incoming = get().graphEdges.find((e) => e.target === clientId);
         const parentOverride = incoming
-          ? latestServerNodeIdByClientId.get(incoming.source)
-            ?? get().graphNodes.find((n) => n.id === clientId)?.data.parentServerNodeId
-            ?? null
+          ? (latestServerNodeIdByClientId.get(incoming.source) ??
+            get().graphNodes.find((n) => n.id === clientId)?.data
+              .parentServerNodeId ??
+            null)
           : null;
-        const nodeId = await get().runGenerateNodeInPlace(clientId as ClientNodeId, {
-          parentServerNodeIdOverride: parentOverride,
-          suppressToast: true,
-        });
+        const nodeId = await get().runGenerateNodeInPlace(
+          clientId as ClientNodeId,
+          {
+            parentServerNodeIdOverride: parentOverride,
+            suppressToast: true,
+          },
+        );
         if (!nodeId) {
-          get().showToast(t("nodeBatch.failed", { done: completed, total: candidates.length }), true);
+          get().showToast(
+            t("nodeBatch.failed", {
+              done: completed,
+              total: candidates.length,
+            }),
+            true,
+          );
           break;
         }
         completed += 1;
         latestServerNodeIdByClientId.set(clientId, nodeId);
-        const directChildren = getDirectUnselectedChildren(get().graphEdges, clientId, selectedSet);
-        const downstream = new Set(getUnselectedDownstreamIds(get().graphEdges, selectedSet));
+        const directChildren = getDirectUnselectedChildren(
+          get().graphEdges,
+          clientId,
+          selectedSet,
+        );
+        const downstream = new Set(
+          getUnselectedDownstreamIds(get().graphEdges, selectedSet),
+        );
         set({
           graphNodes: get().graphNodes.map((n) => {
             if (!downstream.has(n.id)) return n;
@@ -2417,7 +2699,9 @@ export const useAppStore = create<AppState>((set, get) => ({
           }),
         });
       }
-      get().showToast(t("nodeBatch.finished", { done: completed, total: candidates.length }));
+      get().showToast(
+        t("nodeBatch.finished", { done: completed, total: candidates.length }),
+      );
       get().scheduleGraphSave();
     } finally {
       set({ nodeBatchRunning: false, nodeBatchStopping: false });
@@ -2430,7 +2714,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (reqId) void cancelInflight(reqId);
     clearStoredNodeRefs(get().activeSessionId, clientId);
     const graphNodes = get().graphNodes.filter((n) => n.id !== clientId);
-    const graphEdges = get().graphEdges.filter((e) => e.source !== clientId && e.target !== clientId);
+    const graphEdges = get().graphEdges.filter(
+      (e) => e.source !== clientId && e.target !== clientId,
+    );
     set({
       graphNodes: deriveParentServerNodeIds(graphNodes, graphEdges),
       graphEdges,
@@ -2440,14 +2726,17 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   deleteNodes: (clientIds) => {
     const set_ = new Set(clientIds);
-    for (const clientId of set_) clearStoredNodeRefs(get().activeSessionId, clientId);
+    for (const clientId of set_)
+      clearStoredNodeRefs(get().activeSessionId, clientId);
     for (const n of get().graphNodes) {
       if (set_.has(n.id) && n.data?.pendingRequestId) {
         void cancelInflight(n.data.pendingRequestId);
       }
     }
     const graphNodes = get().graphNodes.filter((n) => !set_.has(n.id));
-    const graphEdges = get().graphEdges.filter((e) => !set_.has(e.source) && !set_.has(e.target));
+    const graphEdges = get().graphEdges.filter(
+      (e) => !set_.has(e.source) && !set_.has(e.target),
+    );
     set({
       graphNodes: deriveParentServerNodeIds(graphNodes, graphEdges),
       graphEdges,
@@ -2455,13 +2744,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().scheduleGraphSave();
   },
 
-  addChildNodeAt: (parentClientId, position, sourceHandle = DEFAULT_CHILD_SOURCE_HANDLE) => {
+  addChildNodeAt: (
+    parentClientId,
+    position,
+    sourceHandle = DEFAULT_CHILD_SOURCE_HANDLE,
+  ) => {
     const parent = get().graphNodes.find((n) => n.id === parentClientId);
     if (!parent) return parentClientId;
     const clientId = newClientNodeId();
     const normalizedSourceHandle =
-      normalizeNodeHandleId(sourceHandle, "source") ?? DEFAULT_CHILD_SOURCE_HANDLE;
-    const targetHandle = getOppositeTargetHandle(normalizedSourceHandle) ?? DEFAULT_CHILD_TARGET_HANDLE;
+      normalizeNodeHandleId(sourceHandle, "source") ??
+      DEFAULT_CHILD_SOURCE_HANDLE;
+    const targetHandle =
+      getOppositeTargetHandle(normalizedSourceHandle) ??
+      DEFAULT_CHILD_TARGET_HANDLE;
     const node: GraphNode = {
       id: clientId,
       type: "imageNode",
@@ -2478,7 +2774,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       },
     };
     const edge: GraphEdge = {
-      id: newGraphEdgeId(parentClientId, clientId, normalizedSourceHandle, targetHandle),
+      id: newGraphEdgeId(
+        parentClientId,
+        clientId,
+        normalizedSourceHandle,
+        targetHandle,
+      ),
       source: parentClientId,
       target: clientId,
       sourceHandle: normalizedSourceHandle,
@@ -2492,13 +2793,24 @@ export const useAppStore = create<AppState>((set, get) => ({
     return clientId;
   },
 
-  connectNodes: (sourceClientId, targetClientId, sourceHandle = null, targetHandle = null) => {
+  connectNodes: (
+    sourceClientId,
+    targetClientId,
+    sourceHandle = null,
+    targetHandle = null,
+  ) => {
     if (sourceClientId === targetClientId) return;
     const existing = get().graphEdges.find(
       (e) => e.source === sourceClientId && e.target === targetClientId,
     );
     if (existing) return;
-    if (wouldCreateMultipleIncomingEdge(get().graphEdges, sourceClientId, targetClientId)) {
+    if (
+      wouldCreateMultipleIncomingEdge(
+        get().graphEdges,
+        sourceClientId,
+        targetClientId,
+      )
+    ) {
       get().showToast(t("edge.parentConflict"), true);
       return;
     }
@@ -2507,7 +2819,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     const graphEdges = [
       ...get().graphEdges,
       {
-        id: newGraphEdgeId(sourceClientId, targetClientId, sourceHandle, targetHandle),
+        id: newGraphEdgeId(
+          sourceClientId,
+          targetClientId,
+          sourceHandle,
+          targetHandle,
+        ),
         source: sourceClientId,
         target: targetClientId,
         sourceHandle,
@@ -2590,7 +2907,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   insertPromptToComposer: (prompt) =>
     set((state) => {
-      const exists = state.insertedPrompts.some((item) => item.id === prompt.id);
+      const exists = state.insertedPrompts.some(
+        (item) => item.id === prompt.id,
+      );
       const insertedPrompts = exists
         ? state.insertedPrompts
         : [...state.insertedPrompts, prompt];
@@ -2601,7 +2920,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     }),
   removeInsertedPromptFromComposer: (id) =>
     set((state) => {
-      const insertedPrompts = state.insertedPrompts.filter((prompt) => prompt.id !== id);
+      const insertedPrompts = state.insertedPrompts.filter(
+        (prompt) => prompt.id !== id,
+      );
       saveGenerationDefaultsPatch({ insertedPrompts });
       return { insertedPrompts };
     }),
@@ -2613,8 +2934,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectHistory: (item) => {
     const history = get().history;
     const target = item.canvasVersion
-      ? resolveVisibleShortcutCurrent(history, item) ?? getVisibleGalleryItems(history)[0] ?? null
-      : resolveVisibleShortcutCurrent(history, item) ?? item;
+      ? (resolveVisibleShortcutCurrent(history, item) ??
+        getVisibleGalleryItems(history)[0] ??
+        null)
+      : (resolveVisibleShortcutCurrent(history, item) ?? item);
     saveSelectedFilename(target?.filename ?? null);
     set({ currentImage: target, unseenGeneratedCount: 0 });
   },
@@ -2628,14 +2951,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   trashHistoryItem: async (item) => {
-    const target = item.canvasVersion ? resolveVisibleShortcutCurrent(get().history, item) : item;
+    const target = item.canvasVersion
+      ? resolveVisibleShortcutCurrent(get().history, item)
+      : item;
     if (!target || target.canvasVersion || !target.filename) {
       get().showToast(t("gallery.deleteFailed"), true);
       return;
     }
     const filename = target.filename;
     const current = get().currentImage;
-    const visibleCurrent = current ? resolveVisibleShortcutCurrent(get().history, current) ?? current : null;
+    const visibleCurrent = current
+      ? (resolveVisibleShortcutCurrent(get().history, current) ?? current)
+      : null;
     const removingCurrent = visibleCurrent?.filename === filename;
     const replacement = removingCurrent
       ? getNeighborAfterRemoval(get().history, filename)
@@ -2675,7 +3002,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   permanentlyDeleteHistoryItemByShortcut: async (item) => {
-    const target = item.canvasVersion ? resolveVisibleShortcutCurrent(get().history, item) : item;
+    const target = item.canvasVersion
+      ? resolveVisibleShortcutCurrent(get().history, item)
+      : item;
     if (!target || target.canvasVersion || !target.filename) {
       get().showToast(t("gallery.deleteFailed"), true);
       return;
@@ -2684,7 +3013,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const ok = window.confirm(t("result.permanentDeleteConfirm", { filename }));
     if (!ok) return;
     const current = get().currentImage;
-    const visibleCurrent = current ? resolveVisibleShortcutCurrent(get().history, current) ?? current : null;
+    const visibleCurrent = current
+      ? (resolveVisibleShortcutCurrent(get().history, current) ?? current)
+      : null;
     const removingCurrent = visibleCurrent?.filename === filename;
     const replacement = removingCurrent
       ? getNeighborAfterRemoval(get().history, filename)
@@ -2709,7 +3040,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const s = get();
     const history = s.history.filter((h) => h.filename !== filename);
     const stillCurrent =
-      s.currentImage && s.currentImage.filename === filename ? null : s.currentImage;
+      s.currentImage && s.currentImage.filename === filename
+        ? null
+        : s.currentImage;
     set({ history, currentImage: stillCurrent });
     if (stillCurrent === null) saveSelectedFilename(null);
   },
@@ -2755,7 +3088,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const prompt = composePrompt(s.prompt, s.insertedPrompts);
     if (!prompt) return;
     const useMultimode = s.uiMode === "classic" && s.multimode;
-    const pending = getCustomSizeConfirmation(s, { kind: useMultimode ? "multimode" : "classic" });
+    const pending = getCustomSizeConfirmation(s, {
+      kind: useMultimode ? "multimode" : "classic",
+    });
     if (pending) {
       set({ customSizeConfirm: pending });
       return;
@@ -2794,8 +3129,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({
       activeGenerations: s.activeGenerations + 1,
       inFlight: nextInFlight,
-      multimodeAbortControllers: { ...s.multimodeAbortControllers, [flightId]: controller },
-      multimodeSequences: { ...s.multimodeSequences, [flightId]: initialSequence },
+      multimodeAbortControllers: {
+        ...s.multimodeAbortControllers,
+        [flightId]: controller,
+      },
+      multimodeSequences: {
+        ...s.multimodeSequences,
+        [flightId]: initialSequence,
+      },
       multimodePreviewFlightId: flightId,
     });
     get().startInFlightPolling();
@@ -2842,7 +3183,9 @@ export const useAppStore = create<AppState>((set, get) => ({
             set((state) => {
               const current = state.multimodeSequences[flightId];
               if (!current) return {};
-              const exists = current.images.some((item) => item.filename && item.filename === image.filename);
+              const exists = current.images.some(
+                (item) => item.filename && item.filename === image.filename,
+              );
               if (exists) return {};
               return {
                 multimodeSequences: {
@@ -2890,8 +3233,15 @@ export const useAppStore = create<AppState>((set, get) => ({
           },
         },
       }));
-      const toastKey = res.status === "complete" ? "multimode.complete" : "multimode.partial";
-      get().showToast(t(toastKey, { returned: res.returned, requested: res.requested, elapsed: res.elapsed }));
+      const toastKey =
+        res.status === "complete" ? "multimode.complete" : "multimode.partial";
+      get().showToast(
+        t(toastKey, {
+          returned: res.returned,
+          requested: res.requested,
+          elapsed: res.elapsed,
+        }),
+      );
     } catch (err) {
       if ((err as Error).name === "AbortError") {
         set((state) => {
@@ -2914,7 +3264,11 @@ export const useAppStore = create<AppState>((set, get) => ({
           return {
             multimodeSequences: {
               ...state.multimodeSequences,
-              [flightId]: { ...current, status: "error", error: (err as Error).message },
+              [flightId]: {
+                ...current,
+                status: "error",
+                error: (err as Error).message,
+              },
             },
           };
         });
@@ -2929,12 +3283,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         let nextPreview = state.multimodePreviewFlightId;
         if (nextPreview === flightId) {
           const finalStatus = state.multimodeSequences[flightId]?.status;
-          const isCleanFinish = finalStatus === "complete" || finalStatus === "partial";
+          const isCleanFinish =
+            finalStatus === "complete" || finalStatus === "partial";
           if (!isCleanFinish) {
             const fallbackIds = Object.keys(nextControllers);
-            nextPreview = fallbackIds.length > 0
-              ? fallbackIds[fallbackIds.length - 1]
-              : null;
+            nextPreview =
+              fallbackIds.length > 0
+                ? fallbackIds[fallbackIds.length - 1]
+                : null;
           }
         }
         return {
@@ -3022,7 +3378,12 @@ export const useAppStore = create<AppState>((set, get) => ({
           };
           await addHistory(item, set, get);
         }
-        get().showToast(t("toast.generatedBatch", { count: res.images.length, elapsed: res.elapsed }));
+        get().showToast(
+          t("toast.generatedBatch", {
+            count: res.images.length,
+            elapsed: res.elapsed,
+          }),
+        );
       } else {
         let item: GenerateItem;
         if (isMultiResponse(res)) {
@@ -3090,7 +3451,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
     if (pending.continuation.kind === "node-variation") {
-      await get().generateNodeVariation(pending.continuation.clientId, adjustedSize);
+      await get().generateNodeVariation(
+        pending.continuation.clientId,
+        adjustedSize,
+      );
       return;
     }
     await get().runGenerateNode(pending.continuation.clientId, adjustedSize);
@@ -3110,7 +3474,9 @@ export const useAppStore = create<AppState>((set, get) => ({
             : null;
           const visibleHistory = getVisibleGalleryItems(history);
           const currentImage =
-            (matched ? resolveVisibleShortcutCurrent(history, matched) : null) ??
+            (matched
+              ? resolveVisibleShortcutCurrent(history, matched)
+              : null) ??
             visibleHistory[0] ??
             null;
           set({ history, currentImage });
@@ -3128,7 +3494,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ toast: { message, error, id: Date.now() + Math.random() } });
   },
   showErrorCard(code, params) {
-    set({ errorCard: { code, fallbackMessage: params?.fallbackMessage, id: Date.now() + Math.random() } });
+    set({
+      errorCard: {
+        code,
+        fallbackMessage: params?.fallbackMessage,
+        id: Date.now() + Math.random(),
+      },
+    });
   },
   dismissErrorCard() {
     set({ errorCard: null });
@@ -3143,7 +3515,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ promptLibraryLoading: true });
     try {
       const data = await getPromptLibrary();
-      set({ promptLibrary: { prompts: data.prompts, folders: data.folders }, promptLibraryLoading: false });
+      set({
+        promptLibrary: { prompts: data.prompts, folders: data.folders },
+        promptLibraryLoading: false,
+      });
     } catch (err) {
       console.error("[PromptLibrary] load failed", err);
       set({ promptLibraryLoading: false });
@@ -3158,6 +3533,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (err) {
       console.error("[PromptLibrary] save failed", err);
       get().showToast(t("promptLibrary.saveFailed"), true);
+    }
+  },
+
+  async updatePromptInLibrary(id, payload) {
+    try {
+      await updatePrompt(id, payload);
+      await get().loadPromptLibrary();
+      get().showToast(t("common.saved"));
+    } catch (err) {
+      console.error("[PromptLibrary] update failed", err);
+      get().showToast(t("common.error"), true);
     }
   },
 
@@ -3187,7 +3573,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         const text = await file.text();
         if (!text.trim()) continue;
         const name = file.name.replace(/\.(txt|md|markdown)$/i, "");
-        prompts.push({ name: name.trim() || t("promptLibrary.untitled"), text: text.trim(), tags: [] });
+        prompts.push({
+          name: name.trim() || t("promptLibrary.untitled"),
+          text: text.trim(),
+          tags: [],
+        });
       }
       if (prompts.length === 0) {
         get().showToast(t("promptLibrary.importNoValidFiles"), true);
@@ -3195,7 +3585,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       const result = await importPromptLibrary({ prompts });
       await get().loadPromptLibrary();
-      get().showToast(t("promptLibrary.imported", { count: result.promptsImported }));
+      get().showToast(
+        t("promptLibrary.imported", { count: result.promptsImported }),
+      );
     } catch (err) {
       console.error("[PromptLibrary] import failed", err);
       get().showToast(t("promptLibrary.importFailed"), true);
@@ -3223,9 +3615,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // Canvas Mode actions (0.24)
-  openCanvas: () => set({ canvasOpen: true, canvasZoom: 1, canvasPanX: 0, canvasPanY: 0 }),
+  openCanvas: () =>
+    set({ canvasOpen: true, canvasZoom: 1, canvasPanX: 0, canvasPanY: 0 }),
   closeCanvas: () => set({ canvasOpen: false }),
-  setCanvasZoom: (zoom) => set({ canvasZoom: Math.max(0.5, Math.min(3, zoom)) }),
+  setCanvasZoom: (zoom) =>
+    set({ canvasZoom: Math.max(0.5, Math.min(3, zoom)) }),
   resetCanvasZoom: () => set({ canvasZoom: 1, canvasPanX: 0, canvasPanY: 0 }),
   setCanvasPan: (x, y) => {
     const cap = 4000;
@@ -3287,7 +3681,9 @@ function sanitizeForSave(d: ImageNodeData): Record<string, unknown> {
   };
 }
 
-function serializeGraphEdgesForSave(graphEdges: GraphEdge[]): SessionGraphEdge[] {
+function serializeGraphEdgesForSave(
+  graphEdges: GraphEdge[],
+): SessionGraphEdge[] {
   return graphEdges.map((e) => ({
     id: e.id,
     source: e.source,
@@ -3336,7 +3732,8 @@ async function recoverGraphNodesFromHistory(
   const next = get().graphNodes.map((n) => {
     if (n.data.imageUrl || n.data.serverNodeId) return n;
     const startedAt = n.data.pendingStartedAt ?? 0;
-    const requestKey = n.data.pendingRequestId ?? n.data.recoveryRequestId ?? null;
+    const requestKey =
+      n.data.pendingRequestId ?? n.data.recoveryRequestId ?? null;
     const byRequest = requestKey
       ? items.find(
           (h) =>
@@ -3344,12 +3741,14 @@ async function recoverGraphNodesFromHistory(
             (h.requestId ?? null) === requestKey,
         )
       : null;
-    const recovered = byRequest ?? items.find(
-      (h) =>
-        (h.sessionId ?? null) === sid &&
-        (h.clientNodeId ?? null) === n.id &&
-        (!startedAt || (h.createdAt ?? 0) >= startedAt),
-    );
+    const recovered =
+      byRequest ??
+      items.find(
+        (h) =>
+          (h.sessionId ?? null) === sid &&
+          (h.clientNodeId ?? null) === n.id &&
+          (!startedAt || (h.createdAt ?? 0) >= startedAt),
+      );
     if (!recovered) return n;
     changed = true;
     return {
@@ -3420,7 +3819,10 @@ async function doSave(
       tabId: getGraphTabId(),
     });
     if (get().activeSessionId !== id) return "skipped";
-    pruneNodeRefs(id, get().graphNodes.map((n) => n.id));
+    pruneNodeRefs(
+      id,
+      get().graphNodes.map((n) => n.id),
+    );
     set({ activeSessionGraphVersion: res.graphVersion });
     return "saved";
   } catch (err) {
@@ -3545,7 +3947,11 @@ async function addHistory(
     url,
     createdAt: item.createdAt || Date.now(),
   };
-  const history = [withThumb, ...get().history].slice(0, HISTORY_LIMIT);
+  const filteredHistory = get().history.filter(
+    (h) =>
+      !(h.filename && withThumb.filename && h.filename === withThumb.filename),
+  );
+  const history = [withThumb, ...filteredHistory].slice(0, HISTORY_LIMIT);
   saveSelectedFilename(withThumb.filename ?? null);
   set({
     history,

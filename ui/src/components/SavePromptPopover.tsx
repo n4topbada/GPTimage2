@@ -38,7 +38,11 @@ export function SavePromptPopover({
     <div className="save-prompt-popover" onClick={(e) => e.stopPropagation()}>
       <div className="save-prompt-popover__header">
         <span>{t("promptLibrary.saveTitle")}</span>
-        <button className="save-prompt-popover__close" onClick={onClose} aria-label={t("common.close")}>
+        <button
+          className="save-prompt-popover__close"
+          onClick={onClose}
+          aria-label={t("common.close")}
+        >
           ×
         </button>
       </div>
@@ -58,7 +62,7 @@ export function SavePromptPopover({
             value={promptText}
             onChange={(e) => setPromptText(e.target.value)}
             placeholder="Enter prompt..."
-            rows={4}
+            rows={8}
             autoFocus
           />
         </label>
@@ -73,7 +77,11 @@ export function SavePromptPopover({
         </label>
       </div>
       <div className="save-prompt-popover__footer">
-        <button onClick={handleSave} disabled={saving || !promptText.trim()} className="save-prompt-popover__save">
+        <button
+          onClick={handleSave}
+          disabled={saving || !promptText.trim()}
+          className="save-prompt-popover__save"
+        >
           {saving ? t("common.saving") : t("promptLibrary.save")}
         </button>
       </div>

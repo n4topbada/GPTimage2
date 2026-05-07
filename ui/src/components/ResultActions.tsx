@@ -30,7 +30,6 @@ export function ResultActions({ imageOverride = null }: ResultActionsProps) {
     (s) => s.permanentlyDeleteHistoryItemByClick,
   );
   const canvasOpen = useAppStore((s) => s.canvasOpen);
-  const openCanvas = useAppStore((s) => s.openCanvas);
   const [comfyExporting, setComfyExporting] = useState(false);
 
   const actionImage = imageOverride ?? currentImage;
@@ -48,7 +47,9 @@ export function ResultActions({ imageOverride = null }: ResultActionsProps) {
     try {
       const res = await fetch(actionImage.image);
       const blob = await res.blob();
-      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      await navigator.clipboard.write([
+        new ClipboardItem({ [blob.type]: blob }),
+      ]);
       showToast(t("toast.imageCopied"));
     } catch {
       showToast(t("toast.copyFailed"), true);
@@ -90,10 +91,17 @@ export function ResultActions({ imageOverride = null }: ResultActionsProps) {
     if (!actionImage.filename || comfyExporting) return;
     setComfyExporting(true);
     try {
-      const result = await exportImageToComfy({ filename: actionImage.filename });
-      showToast(t("toast.comfyExported", { filename: result.uploadedFilename }));
+      const result = await exportImageToComfy({
+        filename: actionImage.filename,
+      });
+      showToast(
+        t("toast.comfyExported", { filename: result.uploadedFilename }),
+      );
     } catch (error) {
-      const code = error instanceof Error ? (error as Error & { code?: string }).code : undefined;
+      const code =
+        error instanceof Error
+          ? (error as Error & { code?: string }).code
+          : undefined;
       const key =
         code === "COMFY_URL_NOT_LOCAL"
           ? "toast.comfyExportInvalidUrl"
@@ -127,19 +135,7 @@ export function ResultActions({ imageOverride = null }: ResultActionsProps) {
       >
         {t("result.continueHere")}
       </button>
-      {!canvasOpen && (
-        <button
-          type="button"
-          className="action-btn"
-          onClick={openCanvas}
-          title={t("canvas.open")}
-          aria-label={t("canvas.openAria")}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path d="M4 4h8v8M12 4l-8 8"/>
-          </svg>
-        </button>
-      )}
+
       {actionImage.filename && (
         <>
           <button
@@ -167,7 +163,9 @@ export function ResultActions({ imageOverride = null }: ResultActionsProps) {
               <button
                 type="button"
                 className="result-actions__menu-item result-actions__danger-item"
-                onClick={() => void permanentlyDeleteHistoryItemByClick(actionImage)}
+                onClick={() =>
+                  void permanentlyDeleteHistoryItemByClick(actionImage)
+                }
               >
                 {t("result.permanentDelete")}
               </button>

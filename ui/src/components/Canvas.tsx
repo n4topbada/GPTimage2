@@ -38,29 +38,35 @@ function formatSizeAlias(size: string | null | undefined): string | null {
 
 function getClassicImageSrc(image: GenerateItem): string {
   const src = image.url ?? image.image;
-  if (!image.canvasVersion || !image.canvasMergedAt || src.startsWith("data:")) return src;
+  if (!image.canvasVersion || !image.canvasMergedAt || src.startsWith("data:"))
+    return src;
   const separator = src.includes("?") ? "&" : "?";
   return `${src}${separator}canvasMergedAt=${image.canvasMergedAt}`;
 }
 
 export function Canvas() {
   const currentImage = useAppStore((s) => s.currentImage);
-  const importLocalImageToHistory = useAppStore((s) => s.importLocalImageToHistory);
+  const importLocalImageToHistory = useAppStore(
+    (s) => s.importLocalImageToHistory,
+  );
   const multimodeSequence = useAppStore((s) => {
     const id = s.multimodePreviewFlightId;
-    return id ? s.multimodeSequences[id] ?? null : null;
+    return id ? (s.multimodeSequences[id] ?? null) : null;
   });
-  const selectHistoryShortcutTarget = useAppStore((s) => s.selectHistoryShortcutTarget);
+  const selectHistoryShortcutTarget = useAppStore(
+    (s) => s.selectHistoryShortcutTarget,
+  );
   const trashHistoryItem = useAppStore((s) => s.trashHistoryItem);
   const permanentlyDeleteHistoryItemByShortcut = useAppStore(
     (s) => s.permanentlyDeleteHistoryItemByShortcut,
   );
-  const markGeneratedResultsSeen = useAppStore((s) => s.markGeneratedResultsSeen);
+  const markGeneratedResultsSeen = useAppStore(
+    (s) => s.markGeneratedResultsSeen,
+  );
   const activeGenerations = useAppStore((s) => s.activeGenerations);
   const quality = useAppStore((s) => s.quality);
   const getResolvedSize = useAppStore((s) => s.getResolvedSize);
   const canvasOpen = useAppStore((s) => s.canvasOpen);
-  const openCanvas = useAppStore((s) => s.openCanvas);
   const showToast = useAppStore((s) => s.showToast);
   const { t } = useI18n();
   const [dropActive, setDropActive] = useState(false);
@@ -91,7 +97,8 @@ export function Canvas() {
       event.key !== "ArrowRight" &&
       event.key !== "Home" &&
       event.key !== "End"
-    ) return;
+    )
+      return;
     if (event.target !== event.currentTarget) return;
     if (isEditableTarget(event.target)) return;
 
@@ -108,16 +115,23 @@ export function Canvas() {
     event.currentTarget.focus();
   };
 
-  const handleCenterDragOver = useCallback((event: ReactDragEvent<HTMLElement>): void => {
-    if (!Array.from(event.dataTransfer.types).includes("Files")) return;
-    event.preventDefault();
-    setDropActive((prev) => (prev ? prev : true));
-  }, []);
+  const handleCenterDragOver = useCallback(
+    (event: ReactDragEvent<HTMLElement>): void => {
+      if (!Array.from(event.dataTransfer.types).includes("Files")) return;
+      event.preventDefault();
+      setDropActive((prev) => (prev ? prev : true));
+    },
+    [],
+  );
 
-  const handleCenterDragLeave = useCallback((event: ReactDragEvent<HTMLElement>): void => {
-    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-    setDropActive(false);
-  }, []);
+  const handleCenterDragLeave = useCallback(
+    (event: ReactDragEvent<HTMLElement>): void => {
+      if (event.currentTarget.contains(event.relatedTarget as Node | null))
+        return;
+      setDropActive(false);
+    },
+    [],
+  );
 
   const handleCenterDrop = useCallback(
     async (event: ReactDragEvent<HTMLElement>): Promise<void> => {
@@ -135,7 +149,11 @@ export function Canvas() {
 
   if (canvasOpen && currentImage) {
     return (
-      <Suspense fallback={<main className="canvas canvas--mode-open" aria-busy="true" />}>
+      <Suspense
+        fallback={
+          <main className="canvas canvas--mode-open" aria-busy="true" />
+        }
+      >
         <LazyCanvasModeWorkspace currentImage={currentImage} />
       </Suspense>
     );
@@ -158,7 +176,9 @@ export function Canvas() {
           <span className="canvas__drop-hint">{t("canvas.drop.hint")}</span>
         </div>
       ) : null}
-      <div className={`progress-bar${activeGenerations > 0 ? " active" : ""}`} />
+      <div
+        className={`progress-bar${activeGenerations > 0 ? " active" : ""}`}
+      />
       {multimodeSequence ? (
         <MultimodeSequencePreview />
       ) : currentImage && imageSrc ? (
@@ -175,32 +195,34 @@ export function Canvas() {
               key={`${currentImage.filename ?? currentImage.url ?? currentImage.image}:${currentImage.canvasMergedAt ?? ""}`}
               src={imageSrc}
               alt={t("canvas.resultAlt")}
-              onDoubleClick={(event) => {
-                event.stopPropagation();
-                openCanvas();
-              }}
             />
           </div>
-          <div className="result-meta">
-            {[
-              currentImage.elapsed != null ? `${currentImage.elapsed}s` : null,
-              currentImage.usage
-                ? t("canvas.tokens", { n: currentImage.usage.total_tokens ?? "?" })
-                : null,
-              displayQuality,
-              displaySize,
-              displayModel,
-              currentImage.provider ?? null,
-            ]
-              .filter((value): value is string => Boolean(value))
-              .join(" · ")}
-          </div>
-          <ResultActions />
-          {currentImage.prompt ? (
-            <div className="result-prompt" onClick={copyPrompt}>
-              {currentImage.prompt}
+          <div className="result-sidebar">
+            <div className="result-meta">
+              {[
+                currentImage.elapsed != null
+                  ? `${currentImage.elapsed}s`
+                  : null,
+                currentImage.usage
+                  ? t("canvas.tokens", {
+                      n: currentImage.usage.total_tokens ?? "?",
+                    })
+                  : null,
+                displayQuality,
+                displaySize,
+                displayModel,
+                currentImage.provider ?? null,
+              ]
+                .filter((value): value is string => Boolean(value))
+                .join(" · ")}
             </div>
-          ) : null}
+            <ResultActions />
+            {currentImage.prompt ? (
+              <div className="result-prompt" onClick={copyPrompt}>
+                {currentImage.prompt}
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : !currentImage ? (
         <div className="canvas__blank-entry">
@@ -215,7 +237,9 @@ export function Canvas() {
             onClick={() => void createBlankCanvas()}
             disabled={creatingBlankCanvas}
           >
-            {creatingBlankCanvas ? t("canvas.blank.creating") : t("canvas.blank.create")}
+            {creatingBlankCanvas
+              ? t("canvas.blank.creating")
+              : t("canvas.blank.create")}
           </button>
         </div>
       ) : null}
