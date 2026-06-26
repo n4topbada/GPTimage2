@@ -20,7 +20,7 @@ describe("star prompt", () => {
   });
 
   it("starRepo calls gh starred API with hidden Windows console", async () => {
-    const { starRepo } = await import("../bin/lib/star-prompt.js");
+    const { starRepo } = await import("../bin/lib/star-prompt");
     let seenCommand = "";
     let seenArgs = [];
     let seenOptions;
@@ -43,7 +43,7 @@ describe("star prompt", () => {
   });
 
   it("maybePromptGithubStar skips non-TTY sessions", async () => {
-    const { maybePromptGithubStar } = await import("../bin/lib/star-prompt.js");
+    const { maybePromptGithubStar } = await import("../bin/lib/star-prompt");
     let marked = false;
 
     await maybePromptGithubStar({
@@ -56,7 +56,7 @@ describe("star prompt", () => {
   });
 
   it("maybePromptGithubStar marks once and thanks on successful star", async () => {
-    const { maybePromptGithubStar } = await import("../bin/lib/star-prompt.js");
+    const { maybePromptGithubStar } = await import("../bin/lib/star-prompt");
     const logs = [];
     let marked = false;
 

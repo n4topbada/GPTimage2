@@ -5,10 +5,13 @@ import { summarizeReferencePayload, validateAndNormalizeRefs } from "../lib/refs
 import { classifyUpstreamError } from "../lib/errorClassify.js";
 import { normalizeOAuthParams } from "../lib/oauthNormalize.js";
 import { normalizeImageModel, normalizeReasoningEffort } from "../lib/imageModels.js";
+import { normalizeImageToolSize } from "../lib/imageToolSize.js";
 import { generateMultimodeViaOAuth } from "../lib/oauthProxy.js";
 import { startJob, finishJob } from "../lib/inflight.js";
 import { logEvent, logError } from "../lib/logger.js";
 import { embedImageMetadataBestEffort } from "../lib/imageMetadataStore.js";
+import { isRequestQueuedBeforeServerBoot, staleClientQueuePayload } from "../lib/requestFreshness.js";
+import { queueGeneratedDriveUpload } from "../lib/driveUpload.js";
 
 function sendSse(res, event, data) {
   res.write(`event: ${event}\n`);
@@ -23,7 +26,7 @@ function validateModeration(ctx, moderation) {
 }
 
 function normalizeMaxImages(value) {
-  return Math.min(8, Math.max(1, Math.trunc(Number(value) || 1)));
+  return Math.min(10, Math.max(1, Math.trunc(Number(value) || 1)));
 }
 
 function sequenceStatus(returned, requested) {
@@ -38,12 +41,22 @@ export function registerMultimodeRoutes(app, ctx) {
     let finishStatus = "completed";
     let finishHttpStatus = 200;
     let finishErrorCode;
+    let finishErrorMessage;
     let finishMeta = {};
 
     res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
     res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
     res.flushHeaders?.();
+
+    if (isRequestQueuedBeforeServerBoot(requestId, ctx.startedAt)) {
+      finishStatus = "error";
+      finishHttpStatus = 409;
+      finishErrorCode = "STALE_CLIENT_QUEUE";
+      sendSse(res, "error", { ...staleClientQueuePayload(requestId), status: 409 });
+      res.end();
+      return;
+    }
 
     try {
       const {
@@ -57,7 +70,7 @@ export function registerMultimodeRoutes(app, ctx) {
         mode: promptMode = "auto",
         model: rawModel,
         reasoningEffort: rawReasoningEffort,
-        webSearchEnabled: rawWebSearchEnabled = true,
+        webSearchEnabled: rawWebSearchEnabled = false,
       } = req.body;
       const maxImages = normalizeMaxImages(req.body?.maxImages);
       const normalizedPromptMode = promptMode === "direct" ? "direct" : "auto";
@@ -81,6 +94,9 @@ export function registerMultimodeRoutes(app, ctx) {
       }
       const reasoningEffort = reasoningCheck.effort;
       const webSearchEnabled = rawWebSearchEnabled !== false;
+      const sizeCheck = normalizeImageToolSize(size);
+      const outputSize = sizeCheck.size;
+      const cacheBust = ctx.config?.oauth?.cacheBust === true;
       if (!prompt) {
         finishStatus = "error";
         finishHttpStatus = 400;
@@ -127,7 +143,12 @@ export function registerMultimodeRoutes(app, ctx) {
           kind: "multimode",
           quality,
           model: imageModel,
-          size,
+          promptMode: normalizedPromptMode,
+          webSearchEnabled,
+          cacheBust,
+          size: outputSize,
+          requestedSize: sizeCheck.requestedSize,
+          sizeAdjusted: sizeCheck.adjusted,
           maxImages,
           refsCount: referencePayload.refsCount,
           referenceBytes: referencePayload.referenceBytes,
@@ -139,13 +160,16 @@ export function registerMultimodeRoutes(app, ctx) {
         requestId,
         quality,
         model: imageModel,
-        size,
+        size: outputSize,
+        requestedSize: sizeCheck.requestedSize,
+        sizeAdjusted: sizeCheck.adjusted,
         moderation,
         maxImages,
         refs: refCheck.refs.length,
         referenceBytes: referencePayload.referenceBytes,
         promptChars: typeof prompt === "string" ? prompt.length : 0,
         webSearchEnabled,
+        cacheBust,
       });
 
       const startTime = Date.now();
@@ -158,7 +182,7 @@ export function registerMultimodeRoutes(app, ctx) {
       const generated = await generateMultimodeViaOAuth(
         prompt,
         quality,
-        size,
+        outputSize,
         moderation,
         refCheck.refDetails || refCheck.refs,
         requestId,
@@ -169,6 +193,7 @@ export function registerMultimodeRoutes(app, ctx) {
           maxImages,
           reasoningEffort,
           webSearchEnabled,
+          inputFidelity: refCheck.refs.length > 0 ? "high" : undefined,
           onPartialImage: (partial) =>
             sendSse(res, "partial", {
               image: `data:${mime};base64,${partial.b64}`,
@@ -202,7 +227,9 @@ export function registerMultimodeRoutes(app, ctx) {
           revisedPrompt: image.revisedPrompt || null,
           promptMode: normalizedPromptMode,
           quality,
-          size,
+          size: outputSize,
+          requestedSize: sizeCheck.requestedSize,
+          sizeAdjusted: sizeCheck.adjusted,
           format,
           moderation,
           model: imageModel,
@@ -219,6 +246,7 @@ export function registerMultimodeRoutes(app, ctx) {
         });
         await writeFile(join(ctx.config.storage.generatedDir, filename), embedded.buffer);
         await writeFile(join(ctx.config.storage.generatedDir, filename + ".json"), JSON.stringify(meta)).catch(() => {});
+        queueGeneratedDriveUpload(ctx, filename);
         const item = {
           image: `data:${mime};base64,${image.b64}`,
           filename,
@@ -246,7 +274,9 @@ export function registerMultimodeRoutes(app, ctx) {
         images,
         provider: "oauth",
         quality,
-        size,
+        size: outputSize,
+        requestedSize: sizeCheck.requestedSize,
+        sizeAdjusted: sizeCheck.adjusted,
         moderation,
         model: imageModel,
         usage: generated.usage || null,
@@ -269,6 +299,20 @@ export function registerMultimodeRoutes(app, ctx) {
       finishStatus = "error";
       finishHttpStatus = err.status || 500;
       finishErrorCode = fallbackCode || "MULTIMODE_GENERATE_FAILED";
+      finishErrorMessage = err.message;
+      finishMeta = {
+        ...finishMeta,
+        errorDetails: {
+          error: err.message,
+          code: finishErrorCode,
+          status: finishHttpStatus,
+          requestId,
+          upstreamCode: err.upstreamCode || null,
+          upstreamType: err.upstreamType || null,
+          upstreamParam: err.upstreamParam || null,
+          upstreamDebug: err.upstreamDebug || null,
+        },
+      };
       logError("multimode", "error", err, { requestId, code: finishErrorCode });
       sendSse(res, "error", {
         error: err.message,
@@ -278,12 +322,14 @@ export function registerMultimodeRoutes(app, ctx) {
         upstreamCode: err.upstreamCode || null,
         upstreamType: err.upstreamType || null,
         upstreamParam: err.upstreamParam || null,
+        upstreamDebug: err.upstreamDebug || null,
       });
     } finally {
       finishJob(requestId, {
         status: finishStatus,
         httpStatus: finishHttpStatus,
         errorCode: finishErrorCode,
+        errorMessage: finishErrorMessage,
         meta: finishMeta,
       });
       res.end();

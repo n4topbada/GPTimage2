@@ -4,7 +4,7 @@ import {
   errorCodeFrom,
   isNonRetryableGenerationError,
   normalizeGenerationFailure,
-} from "../lib/generationErrors.ts";
+} from "../lib/generationErrors";
 
 test("upstream 4xx validation errors normalize to INVALID_REQUEST", () => {
   const err = new Error("Invalid size '512x512'. Requested resolution is below the current minimum pixel budget.");
@@ -28,11 +28,18 @@ test("explicit safety refusals remain safety refusals", () => {
   const err = new Error("moderation refused");
   err.status = 422;
   err.code = "MODERATION_REFUSED";
+  err.upstreamCode = "moderation_blocked";
+  err.eventType = "error";
+  err.eventCount = 6;
 
-  assert.equal(isNonRetryableGenerationError(err), false);
+  assert.equal(isNonRetryableGenerationError(err), true);
   const normalized = normalizeGenerationFailure(err);
   assert.equal(normalized.code, "SAFETY_REFUSAL");
   assert.equal(normalized.status, 422);
+  assert.equal(normalized.message, "moderation refused");
+  assert.equal(normalized.upstreamCode, "moderation_blocked");
+  assert.equal(normalized.eventType, "error");
+  assert.equal(normalized.eventCount, 6);
 });
 
 test("OAUTH_UPSTREAM_ERROR is passthrough, not SAFETY_REFUSAL", () => {
@@ -43,6 +50,19 @@ test("OAUTH_UPSTREAM_ERROR is passthrough, not SAFETY_REFUSAL", () => {
   const normalized = normalizeGenerationFailure(err);
   assert.equal(normalized.code, "OAUTH_UPSTREAM_ERROR");
   assert.equal(normalized.status, 502);
+});
+
+test("IMAGE_TOOL_FAILED is passthrough and preserves diagnostics", () => {
+  const err = new Error("Image generation tool call failed");
+  err.code = "IMAGE_TOOL_FAILED";
+  err.status = 502;
+  err.diagnosticReason = "image_generation_call_failed";
+  assert.equal(errorCodeFrom(err), "IMAGE_TOOL_FAILED");
+  assert.equal(isNonRetryableGenerationError(err), true);
+  const normalized = normalizeGenerationFailure(err);
+  assert.equal(normalized.code, "IMAGE_TOOL_FAILED");
+  assert.equal(normalized.status, 502);
+  assert.equal(normalized.diagnosticReason, "image_generation_call_failed");
 });
 
 test("OAuth image timeout is passthrough and non-retryable", () => {

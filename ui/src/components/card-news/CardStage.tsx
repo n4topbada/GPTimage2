@@ -66,7 +66,7 @@ export function CardStage() {
           </div>
         </div>
         <div className="card-news-empty__copy">
-          <span>{t("uiMode.cardNews")}</span>
+          <span>{t("cardNews.composer")}</span>
           <h2>{t("cardNews.emptyTitle")}</h2>
           <p>{t("cardNews.emptyBody")}</p>
         </div>

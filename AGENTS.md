@@ -1,56 +1,61 @@
-# ima2-gen — AI Context
+# ima2-gen AI Context
 
 ## What This Project Does
-GPT Image 2 (gpt-image-2) 이미지 생성기 CLI + 웹 UI
-- OAuth (ChatGPT 계정) 또는 API Key 인증 지원
-- 텍스트→이미지, 이미지→이미지(편집) 생성
-- 병렬 생성 (최대 8장)
+
+`ima2-gen` is a local OAuth image generation studio with a CLI and React UI.
+
+- Default generation path uses Codex/ChatGPT OAuth.
+- API-key image generation is intentionally disabled.
+- Classic generation, image edit/reference flows, multimode batches, local gallery, prompt library, and Canvas Mode are the main surfaces.
+- Card News remains dev-only and experimental.
 
 ## Tech Stack
-- Runtime: Node.js >=20 (ES Module)
+
 - Server: Express 5
-- API Client: OpenAI SDK v5
-- OAuth: openai-oauth (ChatGPT 세션 프록시)
+- API client: OpenAI SDK v5
+- OAuth: `openai-oauth`
 - Frontend: React + Vite (`ui/src`, built to `ui/dist`)
+- Tests: `node:test` contracts and regressions
 
 ## Project Structure
-```
-image_gen/
-├── bin/                  # CLI entry + subcommands
-├── server.js             # Express bootstrap / static UI serving
-├── config.js             # Runtime config
-├── routes/               # API route modules (`*.ts` source)
-├── lib/                  # Server helpers (`*.ts` source + emitted/legacy `*.js`)
-├── ui/src/               # React/Vite app source
-├── ui/dist/              # Built frontend served by server.js
-├── site/                 # Astro marketing/docs site
-├── integrations/comfyui/ # ComfyUI bridge/custom node
-├── structure/            # Current architecture reference docs
-├── devlog/               # `_plan`, `_fin`, `_spikes`
-├── tests/                # node:test contracts/regressions
-└── package.json
-```
 
-## Devlog Phase Roadmap
-- Current active plans live under `devlog/_plan/`.
-- Completed plans live under `devlog/_fin/`.
-- Legacy phase docs live under `devlog/_plan/_legacy/`.
-- Use `structure/07-devlog-map.md` and `devlog/_plan/README.md` as the current roadmap references.
+```text
+bin/                  CLI entry and subcommands
+routes/               Express API route modules
+lib/                  Server/provider/storage helpers
+assets/               Packaged static templates and docs screenshots
+docs/                 User-facing references
+scripts/              Local maintenance scripts
+tests/                node:test contracts and regressions
+ui/src/               React/Vite app source
+ui/src/components/
+  canvas-mode/        Canvas editor workspace and tools
+  card-news/          Dev-only Card News workspace
+  feedback/           Modals, toasts, billing/status surfaces
+  gallery/            Thumbnail rail, gallery modal, queue/log surfaces
+  generation/         Model, size, count, and generation mode controls
+  layout/             App shell panels and mobile shell
+  prompt/             Prompt composer, library, and import UI
+  result/             Main image viewer and result actions
+  settings/           Settings workspace and appearance/account controls
+ui/dist/              Built frontend served by the package
+```
 
 ## Conventions
-- ES Module only (import/export)
-- File length < 500 lines (split if exceeded)
-- Function length < 50 lines
-- try/catch mandatory for all async operations
-- Config values in config.js or .env, never hardcode
 
-## Test Command
+- ES modules only.
+- Prefer small feature folders over a flat component directory.
+- Keep route handlers thin; provider/storage logic belongs in `lib/`.
+- Keep generated images and user data outside the repo by default.
+- Avoid reintroducing removed node-mode or ComfyUI surfaces.
+
+## Verification
+
 ```bash
+npm run typecheck
+npm run ui:build
+npm run build:server
+npm run build:cli
+npm run lint:pkg
 npm test
-cd ui && npx tsc -b --noEmit
-cd ui && npm run build
 ```
-
-## Heartbeat
-- 20분마다 devlog/_plan 점검 및 다음 작업 제안
-- 완료된 phase는 _fin/으로 이동 (YYMMDD_ prefix)

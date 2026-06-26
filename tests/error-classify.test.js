@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { classifyUpstreamError, classifyUpstreamErrorCode } from "../lib/errorClassify.ts";
+import { classifyUpstreamError, classifyUpstreamErrorCode } from "../lib/errorClassify";
 
 test("moderation refused", () => {
   assert.equal(classifyUpstreamError("moderation_blocked"), "MODERATION_REFUSED");

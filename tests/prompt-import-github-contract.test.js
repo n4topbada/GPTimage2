@@ -2,8 +2,8 @@ import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { normalizeGitHubSource, fetchGitHubSource, fetchGitHubSourceText } from "../lib/promptImport/githubSource.ts";
-import { parsePromptCandidates } from "../lib/promptImport/parsePromptCandidates.ts";
+import { normalizeGitHubSource, fetchGitHubSource, fetchGitHubSourceText } from "../lib/promptImport/githubSource";
+import { parsePromptCandidates } from "../lib/promptImport/parsePromptCandidates";
 
 const root = process.cwd();
 const originalFetch = globalThis.fetch;

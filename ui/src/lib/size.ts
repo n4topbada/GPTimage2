@@ -240,9 +240,9 @@ export function replaceCustomSizeSlot(
 
 // gpt-image-2 constraints:
 // - both dims multiple of 16
-// - max side <= 3840
+// - max side <= 4096
 // - ratio <= 3:1
-// - pixel count between 655,360 and 8,294,400
+// - pixel count between 655,360 and 16,777,216
 // User rule: min side >= 1024
 export const SIZE_PRESETS_ROW1 = [
   { value: "1024x1024", label: "1024×1024", sub: "1:1" },
@@ -264,8 +264,9 @@ export const SIZE_PRESETS_ROW3 = [
 
 export const SIZE_PRESETS_ROW4 = [
   { value: "1152x2048", label: "1152×2048", sub: "2K 9:16" },
-  { value: "3840x2160", label: "3840×2160", sub: "4K 16:9" },
-  { value: "2160x3840", label: "2160×3840", sub: "4K 9:16" },
+  { value: "4096x4096", label: "4096×4096", sub: "4K 1:1" },
+  { value: "4096x2304", label: "4096×2304", sub: "4K 16:9" },
+  { value: "2304x4096", label: "2304×4096", sub: "4K 9:16" },
 ] as const;
 
 export function getSizePresetsRow5(): ReadonlyArray<{

@@ -4,7 +4,7 @@ import sharp from "sharp";
 import {
   embedImageMetadata,
   readEmbeddedImageMetadata,
-} from "../lib/imageMetadataStore.ts";
+} from "../lib/imageMetadataStore";
 
 const baseMeta = {
   kind: "classic",

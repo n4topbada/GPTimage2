@@ -68,18 +68,14 @@ describe("canvas annotation contract", () => {
     const frameIndex = source.indexOf("canvas-annotation-frame");
     const layerIndex = source.indexOf("<CanvasAnnotationLayer", frameIndex);
     const toolbarIndex = source.indexOf("<CanvasToolbar", frameIndex);
-    const promptIndex = source.indexOf("result-prompt");
-    const metaIndex = source.indexOf("result-meta");
     const actionsIndex = source.indexOf("<ResultActions");
 
     assert.ok(frameIndex > -1);
     assert.ok(layerIndex > frameIndex);
     assert.ok(toolbarIndex > frameIndex);
-    assert.ok(promptIndex > frameIndex);
-    assert.ok(metaIndex > frameIndex);
     assert.ok(actionsIndex > frameIndex);
-    assert.ok(metaIndex < actionsIndex);
-    assert.ok(actionsIndex < promptIndex);
+    assert.doesNotMatch(source, /result-meta/);
+    assert.doesNotMatch(source, /result-prompt/);
     assert.match(source, /canvas-annotation-frame[\s\S]*transform: canvasOpen[\s\S]{0,200}translate\(\$\{canvasPanX\}px, \$\{canvasPanY\}px\) scale\(\$\{canvasZoom\}\)/);
     assert.doesNotMatch(source, /<img[\s\S]{0,500}transform: canvasOpen[\s\S]{0,40}scale\(\$\{canvasZoom\}\)/);
   });

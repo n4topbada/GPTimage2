@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
-const settings = readFileSync(join(root, "ui/src/components/SettingsWorkspace.tsx"), "utf8");
+const settings = readFileSync(join(root, "ui/src/components/settings/SettingsWorkspace.tsx"), "utf8");
 const css = readFileSync(join(root, "ui/src/index.css"), "utf8");
 
 test("settings workspace keeps mobile and desktop navigation from occupying the same grid", () => {

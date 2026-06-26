@@ -8,7 +8,7 @@ import {
   listenWithPortFallback,
   parseLocalhostPortFromUrl,
   parseOAuthReadyUrl,
-} from "../lib/runtimePorts.ts";
+} from "../lib/runtimePorts";
 
 function occupy(port) {
   return new Promise((resolve) => {

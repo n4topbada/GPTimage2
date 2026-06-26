@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import sharp from "sharp";
-import { editViaOAuth, generateViaOAuth, parseOpenAIErrorBody } from "../lib/oauthProxy.ts";
+import { editViaOAuth, generateViaOAuth, parseOpenAIErrorBody } from "../lib/oauthProxy";
 
 test("OAuth non-ok responses do not expose raw upstream body in logs or errors", async () => {
   const privateText = "private prompt text from upstream body";
@@ -98,6 +98,181 @@ test("generateViaOAuth labels reference inputs with detected MIME", async () => 
     assert.equal(body.tool_choice, "required");
     assert.match(requestBody, /data:image\/jpeg;base64/);
     assert.doesNotMatch(requestBody, /data:image\/png;base64/);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("generateViaOAuth can bust prompt cache with a unique prefix and key", async () => {
+  let requestBody = "";
+  const server = createServer((req, res) => {
+    req.on("data", (chunk) => {
+      requestBody += chunk;
+    });
+    req.on("end", () => {
+      res.writeHead(200, { "Content-Type": "text/event-stream" });
+      res.end(
+        "data: {\"type\":\"response.output_item.done\",\"item\":{\"type\":\"image_generation_call\",\"result\":\"aGVsbG8=\"}}\n\n" +
+          "data: {\"type\":\"response.completed\"}\n\n",
+      );
+    });
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const port = server.address().port;
+
+  try {
+    const result = await generateViaOAuth("cache test", "high", "1024x1024", "low", [], "req_cache_bust", "direct", {
+      oauthUrl: `http://127.0.0.1:${port}`,
+      config: { oauth: { cacheBust: true } },
+    });
+    assert.equal(result.b64, "aGVsbG8=");
+    const body = JSON.parse(requestBody);
+    assert.match(body.prompt_cache_key, /^ima2-cache-bust-req_cache_bust-/);
+    assert.equal(body.input[0].role, "developer");
+    assert.doesNotMatch(body.input[0].content, /Internal diagnostic nonce/);
+    assert.equal(body.input[1].role, "user");
+    assert.equal(body.input.length, 2);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("generateViaOAuth returns no-image streams as non-retryable empty response", async () => {
+  const requestBodies = [];
+  const server = createServer((req, res) => {
+    let requestBody = "";
+    req.on("data", (chunk) => {
+      requestBody += chunk;
+    });
+    req.on("end", () => {
+      requestBodies.push(JSON.parse(requestBody));
+      res.writeHead(200, { "Content-Type": "text/event-stream" });
+      res.end("data: {\"type\":\"response.completed\"}\n\n");
+    });
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const port = server.address().port;
+  const jpegB64 = Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString("base64");
+
+  try {
+    await assert.rejects(
+      generateViaOAuth("stable template", "high", "1024x1024", "low", [jpegB64], "req_empty", "direct", {
+        oauthUrl: `http://127.0.0.1:${port}`,
+      }),
+      (err) => {
+        assert.equal(err.code, "EMPTY_RESPONSE");
+        assert.equal(err.status, 422);
+        assert.equal(err.eventCount, 1);
+        assert.equal(err.refsCount, 1);
+        assert.equal(err.inputImageCount, 1);
+        assert.deepEqual(err.upstreamDebug.rawSseBlocks, [
+          "data: {\"type\":\"response.completed\"}",
+        ]);
+        return true;
+      },
+    );
+    assert.equal(requestBodies.length, 1);
+    assert.equal(requestBodies[0].input[0].role, "developer");
+    assert.equal(requestBodies[0].input[1].role, "user");
+    assert.match(JSON.stringify(requestBodies[0].input), /data:image\/jpeg;base64/);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("generateViaOAuth preserves raw SSE and labels failed image tool calls", async () => {
+  const failedBlock =
+    "data: {\"type\":\"response.output_item.done\",\"item\":{\"type\":\"image_generation_call\",\"status\":\"failed\"}}\n\n";
+  const completedBlock =
+    "data: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\",\"error\":null}}\n\n";
+  const server = createServer((_req, res) => {
+    res.writeHead(200, { "Content-Type": "text/event-stream" });
+    res.end(failedBlock + completedBlock);
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const port = server.address().port;
+
+  try {
+    await assert.rejects(
+      generateViaOAuth("tool failed test", "high", "1024x1024", "low", [], "req_tool_failed", "direct", {
+        oauthUrl: `http://127.0.0.1:${port}`,
+      }),
+      (err) => {
+        assert.equal(err.message, "Image generation tool call failed");
+        assert.equal(err.code, "IMAGE_TOOL_FAILED");
+        assert.equal(err.status, 502);
+        assert.equal(err.diagnosticReason, "image_generation_call_failed");
+        assert.deepEqual(err.upstreamDebug.rawSseBlocks, [
+          failedBlock.trimEnd(),
+          completedBlock.trimEnd(),
+        ]);
+        assert.equal(err.upstreamDebug.lastImageEvent.item.status, "failed");
+        return true;
+      },
+    );
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("generateViaOAuth converts streamed text refusal to safety error", async () => {
+  let requestCount = 0;
+  const server = createServer((_req, res) => {
+    requestCount += 1;
+    res.writeHead(200, { "Content-Type": "text/event-stream" });
+    res.end(
+      "data: {\"type\":\"response.created\"}\n\n" +
+        "data: {\"type\":\"response.output_text.delta\",\"delta\":\"I can't help create that image because it conflicts with the safety policy.\"}\n\n" +
+        "data: {\"type\":\"response.completed\"}\n\n",
+    );
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const port = server.address().port;
+
+  try {
+    await assert.rejects(
+      generateViaOAuth("blocked test", "high", "1024x1024", "low", [], "req_stream_refusal", "direct", {
+        oauthUrl: `http://127.0.0.1:${port}`,
+        config: { oauth: { generationTimeoutMs: 5000 } },
+      }),
+      (err) => {
+        assert.equal(err.message, "Content generation refused by moderation");
+        assert.equal(err.status, 422);
+        assert.equal(err.code, "SAFETY_REFUSAL");
+        assert.equal(err.eventType, "response.output_text.delta");
+        return true;
+      },
+    );
+    assert.equal(requestCount, 1);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("generateViaOAuth converts response.failed moderation event to safety error", async () => {
+  const server = createServer((_req, res) => {
+    res.writeHead(200, { "Content-Type": "text/event-stream" });
+    res.end(
+      "data: {\"type\":\"response.failed\",\"response\":{\"error\":{\"message\":\"moderation refused\",\"code\":\"moderation_blocked\",\"type\":\"invalid_request_error\"}}}\n\n",
+    );
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const port = server.address().port;
+
+  try {
+    await assert.rejects(
+      generateViaOAuth("blocked test", "high", "1024x1024", "low", [], "req_failed_refusal", "direct", {
+        oauthUrl: `http://127.0.0.1:${port}`,
+      }),
+      (err) => {
+        assert.equal(err.message, "Content generation refused by moderation");
+        assert.equal(err.status, 422);
+        assert.equal(err.code, "SAFETY_REFUSAL");
+        assert.equal(err.upstreamCode, "moderation_blocked");
+        assert.equal(err.eventType, "response.failed");
+        return true;
+      },
+    );
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

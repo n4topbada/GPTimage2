@@ -8,8 +8,8 @@ const TEST_DIR = mkdtempSync(join(tmpdir(), "ima2-inflight-persist-"));
 process.env.IMA2_CONFIG_DIR = TEST_DIR;
 process.env.IMA2_DB_PATH = join(TEST_DIR, "sessions.db");
 
-const inflight = await import("../lib/inflight.ts");
-const db = await import("../lib/db.ts");
+const inflight = await import("../lib/inflight");
+const db = await import("../lib/db");
 
 beforeEach(() => {
   inflight._resetForTests();

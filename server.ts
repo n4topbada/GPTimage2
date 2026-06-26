@@ -9,12 +9,13 @@ import {
   readFileSync as fsReadFileSync,
 } from "fs";
 import { dirname, join } from "path";
+import { createConnection } from "net";
 import { fileURLToPath, pathToFileURL } from "url";
 import { onShutdown } from "./bin/lib/platform.js";
 import { ensureDefaultSession } from "./lib/sessionStore.js";
 import { startOAuthProxy } from "./lib/oauthLauncher.js";
 import { migrateGeneratedStorage } from "./lib/storageMigration.js";
-import { purgeStaleJobs } from "./lib/inflight.js";
+import { clearInflightJobs, purgeStaleJobs } from "./lib/inflight.js";
 import { configureLogger } from "./lib/logger.js";
 import { createRequestLogger } from "./lib/requestLogger.js";
 import { configureRoutes } from "./routes/index.js";
@@ -127,6 +128,32 @@ function unadvertise(ctx) {
   } catch {}
 }
 
+async function isOAuthProxyReady(url) {
+  try {
+    const res = await fetch(`${url}/v1/models`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function isTcpPortListening(port, host = "127.0.0.1") {
+  return await new Promise((resolve) => {
+    const socket = createConnection({ host, port });
+    const done = (ok) => {
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(ok);
+    };
+    socket.setTimeout(1000);
+    socket.once("connect", () => done(true));
+    socket.once("timeout", () => done(false));
+    socket.once("error", () => done(false));
+  });
+}
+
 export async function createRuntimeContext(overrides: any = {}) {
   const loadedKey =
     overrides.apiKey !== undefined
@@ -177,21 +204,38 @@ export async function startServer(overrides: any = {}) {
   const ctx = await createRuntimeContext(overrides);
   await migrateGeneratedStorage(ctx);
   purgeStaleJobs();
+  clearInflightJobs();
   const app = buildApp(ctx);
-  const oauthChild =
-    overrides.oauthChild !== undefined
-      ? overrides.oauthChild
-      : !ctx.config.oauth.autoStart
-        ? null
-        : startOAuthProxy({
-            oauthPort: ctx.oauthPort,
-            restartDelayMs: ctx.config.oauth.restartDelayMs,
-            onReady: ({ url, port }) => {
-              ctx.markOAuthReady({ url, port });
-              advertise(ctx);
-            },
-            onExit: () => ctx.markOAuthFailed(),
-          });
+  let oauthChild = null;
+  if (overrides.oauthChild !== undefined) {
+    oauthChild = overrides.oauthChild;
+  } else if (ctx.config.oauth.autoStart) {
+    const existingReady = await isOAuthProxyReady(ctx.oauthUrl);
+    if (existingReady) {
+      console.log(`[oauth] reusing existing openai-oauth at ${ctx.oauthUrl}`);
+      ctx.markOAuthReady({ url: ctx.oauthUrl, port: ctx.oauthPort });
+    } else if (await isTcpPortListening(ctx.oauthPort)) {
+      console.error(`[oauth] port ${ctx.oauthPort} is already in use but not ready; refusing fallback oauth port`);
+      ctx.markOAuthFailed();
+    } else {
+      oauthChild = startOAuthProxy({
+        oauthPort: ctx.oauthPort,
+        restartDelayMs: ctx.config.oauth.restartDelayMs,
+        onReady: ({ url, port }) => {
+          if (port && port !== ctx.oauthPort) {
+            console.error(`[oauth] refusing fallback port ${port}; expected ${ctx.oauthPort}`);
+            try { oauthChild?.stop?.(); } catch {}
+            ctx.markOAuthFailed();
+            advertise(ctx);
+            return;
+          }
+          ctx.markOAuthReady({ url, port });
+          advertise(ctx);
+        },
+        onExit: () => ctx.markOAuthFailed(),
+      });
+    }
+  }
   if (overrides.oauthChild !== undefined || !ctx.config.oauth.autoStart) {
     ctx.markOAuthReady({ url: ctx.oauthUrl, port: ctx.oauthPort });
   }

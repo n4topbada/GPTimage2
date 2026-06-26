@@ -10,7 +10,7 @@
 
 `ima2-gen` 是一个本地图像生成工作室，为你提供类似小型桌面应用的 ChatGPT/Codex OAuth 图像生成体验。
 
-用 `npx` 启动，登录 Codex OAuth，输入 prompt，然后通过历史记录、参考图、节点分支、multimode 批量候选和 Canvas Mode 清理持续迭代。默认图像生成路径不需要 OpenAI API key。
+? `npx` ????? Codex OAuth??? prompt??????????????multimode ????? Canvas Mode ?????????????????? OpenAI API key?
 
 ![显示 prompt 输入区、生成图片、模型标签和结果元数据的 ima2-gen classic 界面](../assets/screenshots/classic-generate-light.png)
 
@@ -41,7 +41,6 @@ ima2 serve
 ## 能做什么
 
 - **Classic mode**：快速生成、编辑，并把当前图片继续作为参考图使用。
-- **Node mode**：从一张满意的图出发，向多个方向分支探索。
 - **Multimode batches**：用同一个 prompt 同时生成多个候选 slot，并从最好的结果继续。
 - **Canvas Mode**：支持缩放/平移、标注、橡皮擦、背景清理、透明 checkerboard 预览，以及 alpha/matte export。
 - **Local gallery**：将生成结果保存在本地，并按会话 (session) 查看历史。
@@ -83,14 +82,6 @@ Quality 支持 `low`, `medium`, `high`；moderation 支持 `auto`, `low`。
 5. 生成后复制、下载、继续迭代，或进入 Canvas Mode 清理。
 
 ![一个 prompt 正在生成四个 candidate slot，sidebar 中显示 active job history 的 multimode sequence 界面](../assets/screenshots/multimode-sequence.png)
-
-### Node mode
-
-适合将创意分支发散并进行直观对比。
-
-![显示连接节点、生成卡片和节点元数据的 Node mode 界面](../assets/screenshots/node-graph-branching.png)
-
-每个节点都有自己的 prompt 和结果。根节点可以附加本地参考图；子节点将使用父节点图片作为参考来源。完成的任务会通过 request ID 重新匹配，因此刷新或 graph version conflict 后也能恢复结果。
 
 ### Canvas Mode
 
@@ -169,7 +160,7 @@ environment variables > ~/.ima2/config.json > built-in defaults
 | `IMA2_SERVER` | — | CLI target override |
 | `IMA2_CONFIG_DIR` | `~/.ima2` | Config 和 SQLite 位置 |
 | `IMA2_ADVERTISE_FILE` | `~/.ima2/server.json` | 运行时 server discovery 文件 |
-| `IMA2_GENERATED_DIR` | `~/.ima2/generated` | 生成图片目录 |
+| `IMA2_GENERATED_DIR` | `<packageRoot>/generated` | 生成图片目录 |
 | `IMA2_IMAGE_MODEL_DEFAULT` | `gpt-5.4-mini` | Server fallback 图像模型 |
 | `IMA2_NO_OAUTH_PROXY` | — | 设为 `1` 时关闭 OAuth proxy 自动启动 |
 | `IMA2_LOG_LEVEL` | `warn` | 普通 `serve` 默认为 `warn`，dev mode 默认为 `debug`；支持 `debug`, `info`, `warn`, `error`, `silent` |
@@ -178,9 +169,9 @@ environment variables > ~/.ima2/config.json > built-in defaults
 
 ### Logging modes
 
-`ima2 serve` 默认保持终端输出安静：启动 URL、warning 和 error 会显示，但 request/node/OAuth structured logs 默认隐藏。
+`ima2 serve` 默认保持终端输出安静：启动 URL、warning 和 error 会显示，但 request/OAuth structured logs 默认隐藏。
 
-如果需要 request ID、Node generation phases、OAuth stream diagnostics 或 inflight state transitions，请使用 `ima2 serve --dev`、`npm run dev`，或 `IMA2_LOG_LEVEL=debug ima2 serve`。
+???? request ID?OAuth stream diagnostics ? inflight state transitions???? `ima2 serve --dev`?`npm run dev`?? `IMA2_LOG_LEVEL=debug ima2 serve`?
 
 ## API 文档
 
@@ -206,7 +197,7 @@ environment variables > ~/.ima2/config.json > built-in defaults
 JPEG/PNG 会在上传前自动压缩。如果仍然失败，请转成更低分辨率的 JPEG/PNG。HEIC/HEIF 不支持浏览器路径。
 
 **更新后看不到旧图库图片**
-新版本把生成图片目录从已安装的 package 文件夹移到了 `~/.ima2/generated`。请运行 `ima2 doctor`，并查看[旧图片恢复指南](RECOVER_OLD_IMAGES.md)。
+生成图片默认保存到项目/package 根目录下的 `generated/` 文件夹。如果需要从旧安装位置恢复图片，请运行 `ima2 doctor`，并查看[旧图片恢复指南](RECOVER_OLD_IMAGES.md)。
 
 **只有 `gpt-5.5` 失败**
 请先更新 Codex CLI 后再试。如果仍然失败，说明当前账号或后端路径下 `gpt-5.5` 的图像 capability 或额度策略可能还不同；稳定替代方案是使用 `gpt-5.4`。

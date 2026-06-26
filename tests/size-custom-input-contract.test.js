@@ -87,34 +87,31 @@ function normalizePair(rawW, rawH, fallbackW, fallbackH) {
   return { w, h, adjusted: w !== requestedW || h !== requestedH, reasons };
 }
 
-describe("custom size input contract", () => {
-  it("keeps keyboard draft changes out of committed store state", () => {
-    const source = readSource("ui/src/components/SizePicker.tsx");
+describe("size preset contract", () => {
+  it("renders the supported low/high resolution presets without custom inputs", () => {
+    const source = readSource("ui/src/components/generation/SizePicker.tsx");
 
-    assert.match(source, /useState\(String\(customW\)\)/);
-    assert.match(source, /useState\(String\(customH\)\)/);
-    assert.match(source, /setDraftW\(e\.target\.value\.replace\(\/\\D\/g, ""\)\)/);
-    assert.match(source, /setDraftH\(e\.target\.value\.replace\(\/\\D\/g, ""\)\)/);
-    assert.doesNotMatch(source, /onChange=\{\(e\) => setCustomSize\(parseInt/);
-  });
-
-  it("uses text inputs with numeric keyboard hints instead of number inputs", () => {
-    const source = readSource("ui/src/components/SizePicker.tsx");
-
-    assert.match(source, /type="text"/);
-    assert.match(source, /inputMode="numeric"/);
-    assert.match(source, /pattern="\[0-9\]\*"/);
+    for (const size of [
+      "2048x1152",
+      "1872x1248",
+      "1248x1872",
+      "1152x2048",
+      "1536x1536",
+      "3840x2160",
+      "3520x2352",
+      "2352x3520",
+      "2160x3840",
+      "2880x2880",
+    ]) {
+      assert.match(source, new RegExp(size));
+    }
+    for (const ratio of ["16:9", "3:2", "2:3", "9:16", "1:1"]) {
+      assert.match(source, new RegExp(ratio));
+    }
+    assert.match(source, /OptionGroup<SizePreset>/);
+    assert.doesNotMatch(source, /commitCustomSize/);
+    assert.doesNotMatch(source, /setDraftW/);
     assert.doesNotMatch(source, /type="number"/);
-  });
-
-  it("commits requested custom dimensions on blur and Enter without normalizing", () => {
-    const source = readSource("ui/src/components/SizePicker.tsx");
-
-    assert.match(source, /function commitCustomSize\(\)/);
-    assert.match(source, /onBlur=\{commitCustomSize\}/);
-    assert.match(source, /if \(e\.key === "Enter"\)/);
-    assert.match(source, /parseRequestedCustomSide\(draftW, customW\)/);
-    assert.doesNotMatch(source, /normalizeCustomSizePair\(draftW, draftH, customW, customH\)/);
   });
 
   it("keeps requested custom sizes in the store until generation time", () => {
@@ -139,26 +136,23 @@ describe("custom size input contract", () => {
     assert.match(source, /export function normalizeCustomSizePair/);
   });
 
-  it("gates both classic and node generation before creating in-flight work", () => {
+  it("gates classic and multimode generation before creating in-flight work", () => {
     const source = readSource("ui/src/store/useAppStore.ts");
 
     assert.match(source, /customSizeConfirm: CustomSizeConfirmState/);
     assert.match(source, /continuation:\s*\n\s*\| \{ kind: "classic" \}/);
     assert.match(source, /\| \{ kind: "multimode" \}/);
-    assert.match(source, /\| \{ kind: "node"; clientId: ClientNodeId \}/);
-    assert.match(source, /const useMultimode = s\.uiMode === "classic" && s\.multimode/);
-    assert.match(source, /getCustomSizeConfirmation\(s, \{ kind: useMultimode \? "multimode" : "classic" \}\)/);
-    assert.match(source, /getCustomSizeConfirmation\(get\(\), \{ kind: "node", clientId \}\)/);
+    assert.doesNotMatch(source, /\| \{ kind: "node"; clientId: ClientNodeId \}/);
+    assert.match(source, /const useMultimode = s\.multimode/);
+    assert.match(source, /getCustomSizeConfirmation\(s, \{\s*kind: useMultimode \? "multimode" : "classic",\s*\}\)/);
     assert.match(source, /runGenerate: \(sizeOverride\?: string\) => Promise<void>/);
     assert.match(source, /generateMultimode: \(sizeOverride\?: string\) => Promise<void>/);
-    assert.match(source, /runGenerateNode: \(clientId: ClientNodeId, sizeOverride\?: string\) => Promise<void>/);
     assert.match(source, /await get\(\)\.runGenerate\(adjustedSize\)/);
     assert.match(source, /await get\(\)\.generateMultimode\(adjustedSize\)/);
-    assert.match(source, /await get\(\)\.runGenerateNode\(pending\.continuation\.clientId, adjustedSize\)/);
   });
 
   it("renders an accessible blocking confirm modal above other overlays", () => {
-    const modal = readSource("ui/src/components/CustomSizeConfirmModal.tsx");
+    const modal = readSource("ui/src/components/feedback/CustomSizeConfirmModal.tsx");
     const app = readSource("ui/src/App.tsx");
     const css = readSource("ui/src/index.css");
     const backdropRule = /\.custom-size-confirm-backdrop\s*\{[^}]*\}/s.exec(css)?.[0] ?? "";
@@ -187,12 +181,10 @@ describe("custom size input contract", () => {
     }
   });
 
-  it("allows custom inputs to shrink inside the narrow right panel", () => {
+  it("does not keep custom input layout rules in the right panel", () => {
     const source = readSource("ui/src/index.css");
-    const rule = /\.custom-size-input\s*\{[^}]*\}/s.exec(source)?.[0] ?? "";
 
-    assert.match(rule, /flex:\s*1/);
-    assert.match(rule, /min-width:\s*0/);
+    assert.doesNotMatch(source, /\.custom-size-input/);
   });
 
   it("mirrors expected custom size normalization examples", () => {

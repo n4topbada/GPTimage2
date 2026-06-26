@@ -7,8 +7,8 @@ import { dirname, join } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
 const store = readFileSync(join(root, "ui/src/store/useAppStore.ts"), "utf8");
-const canvas = readFileSync(join(root, "ui/src/components/Canvas.tsx"), "utf8");
-const preview = readFileSync(join(root, "ui/src/components/MultimodeSequencePreview.tsx"), "utf8");
+const canvas = readFileSync(join(root, "ui/src/components/result/Canvas.tsx"), "utf8");
+const preview = readFileSync(join(root, "ui/src/components/result/MultimodeSequencePreview.tsx"), "utf8");
 
 test("multimode store no longer carries a single-slot lock", () => {
   assert.doesNotMatch(

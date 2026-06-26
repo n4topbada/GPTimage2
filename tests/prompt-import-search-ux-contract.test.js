@@ -11,9 +11,9 @@ function readSource(path) {
 
 describe("prompt import search UX contract", () => {
   it("splits search results and candidate preview into dedicated components", () => {
-    const dialog = readSource("ui/src/components/PromptImportDialog.tsx");
-    const results = readSource("ui/src/components/PromptImportSearchResults.tsx");
-    const preview = readSource("ui/src/components/PromptImportCandidatePreview.tsx");
+    const dialog = readSource("ui/src/components/prompt/PromptImportDialog.tsx");
+    const results = readSource("ui/src/components/prompt/PromptImportSearchResults.tsx");
+    const preview = readSource("ui/src/components/prompt/PromptImportCandidatePreview.tsx");
 
     assert.match(dialog, /PromptImportSearchResults/);
     assert.match(dialog, /PromptImportCandidatePreview/);
@@ -41,8 +41,8 @@ describe("prompt import search UX contract", () => {
   });
 
   it("keeps import as an explicit user action", () => {
-    const dialog = readSource("ui/src/components/PromptImportDialog.tsx");
-    const results = readSource("ui/src/components/PromptImportSearchResults.tsx");
+    const dialog = readSource("ui/src/components/prompt/PromptImportDialog.tsx");
+    const results = readSource("ui/src/components/prompt/PromptImportSearchResults.tsx");
 
     const commitIndex = dialog.indexOf("const commitCandidates");
     const importOneIndex = dialog.indexOf("const importOneCandidate");
@@ -88,20 +88,20 @@ describe("prompt import search UX contract", () => {
   });
 
   it("v2: starts with no curated sources selected even when defaultSearch is true", () => {
-    const dialog = readSource("ui/src/components/PromptImportDialog.tsx");
+    const dialog = readSource("ui/src/components/prompt/PromptImportDialog.tsx");
     assert.match(dialog, /setSelectedSourceIds\(new Set\(\)\)/);
     assert.doesNotMatch(dialog, /source\.defaultSearch/);
   });
 
   it("v2: does not auto-select preview candidates", () => {
-    const dialog = readSource("ui/src/components/PromptImportDialog.tsx");
+    const dialog = readSource("ui/src/components/prompt/PromptImportDialog.tsx");
     const fn = /const addPreviewCandidates = useCallback\([\s\S]*?\}, \[\]\);/.exec(dialog)?.[0] ?? "";
     assert.ok(fn.length > 0, "addPreviewCandidates not found");
     assert.doesNotMatch(fn, /setSelected\(new Set\(merged\.map/);
   });
 
   it("v2: exposes select-all and clear actions on the results component", () => {
-    const results = readSource("ui/src/components/PromptImportSearchResults.tsx");
+    const results = readSource("ui/src/components/prompt/PromptImportSearchResults.tsx");
     assert.match(results, /onSelectAll/);
     assert.match(results, /onClearSelection/);
     assert.match(results, /promptLibrary\.selectAllCandidates/);
@@ -110,7 +110,7 @@ describe("prompt import search UX contract", () => {
   });
 
   it("v2: collapses upper input sections when candidates exist", () => {
-    const dialog = readSource("ui/src/components/PromptImportDialog.tsx");
+    const dialog = readSource("ui/src/components/prompt/PromptImportDialog.tsx");
     assert.match(dialog, /const hasResults = candidates\.length > 0/);
     assert.match(dialog, /const showUpperSections = !hasResults \|\| forceShowSources/);
     assert.match(dialog, /promptLibrary\.addAnotherSource/);

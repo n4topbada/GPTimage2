@@ -85,6 +85,10 @@ export function finishJob(requestId, options: any = {}) {
       phaseAt: j.phaseAt,
       httpStatus: options.httpStatus,
       errorCode: options.errorCode,
+      errorMessage:
+        typeof options.errorMessage === "string"
+          ? options.errorMessage.slice(0, 1000)
+          : undefined,
       meta: {
         ...j.meta,
         ...(options.meta || {}),
@@ -111,6 +115,7 @@ function reapTerminalJobs() {
 }
 
 export function listJobs(filters: any = {}) {
+  expireOverdueJobs();
   purgeStaleJobs();
   const { kind, sessionId } = filters;
   const clauses = [];
@@ -142,12 +147,64 @@ export function listTerminalJobs(filters: any = {}) {
     .sort((a, b) => b.finishedAt - a.finishedAt);
 }
 
+export function clearTerminalJobs(filters: any = {}) {
+  const { kind, sessionId } = filters;
+  if (!kind && !sessionId) {
+    terminalJobs.clear();
+    return;
+  }
+  for (const [id, j] of terminalJobs) {
+    if (kind && j.kind !== kind) continue;
+    if (sessionId && j.meta?.sessionId !== sessionId) continue;
+    terminalJobs.delete(id);
+  }
+}
+
 export function _resetForTests() {
   getDb().prepare("DELETE FROM inflight").run();
   terminalJobs.clear();
 }
 
+export function clearInflightJobs() {
+  getDb().prepare("DELETE FROM inflight").run();
+}
+
+export function expireOverdueJobs(now = Date.now()) {
+  const timeoutMs = Math.max(1, Number(config.oauth.generationTimeoutMs) || 300 * 1000);
+  const rows = getDb()
+    .prepare("SELECT request_id FROM inflight WHERE started_at < ?")
+    .all(now - timeoutMs);
+  for (const row of rows) {
+    const requestId = row?.request_id;
+    if (!requestId) continue;
+    finishJob(requestId, {
+      status: "error",
+      httpStatus: 504,
+      errorCode: "OAUTH_IMAGE_TIMEOUT",
+      errorMessage: "OAuth image generation timed out",
+      meta: {
+        errorDetails: {
+          error: "OAuth image generation timed out",
+          code: "OAUTH_IMAGE_TIMEOUT",
+          upstreamCode: null,
+          upstreamType: null,
+          upstreamParam: null,
+          diagnosticReason: null,
+          retryKind: null,
+          referencesDroppedOnRetry: null,
+          errorEventCount: null,
+          upstreamDebug: null,
+          requestId,
+          timeoutMs,
+          expiredByInflightReaper: true,
+        },
+      },
+    });
+  }
+}
+
 export function purgeStaleJobs(now = Date.now()) {
+  expireOverdueJobs(now);
   getDb()
     .prepare("DELETE FROM inflight WHERE started_at < ?")
     .run(now - config.inflight.ttlMs);

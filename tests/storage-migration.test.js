@@ -7,7 +7,7 @@ import {
   getLegacyGeneratedCandidates,
   inspectGeneratedStorage,
   migrateGeneratedStorage,
-} from "../lib/storageMigration.ts";
+} from "../lib/storageMigration";
 
 async function withTempDirs(fn) {
   const rootDir = await mkdtemp(join(tmpdir(), "ima2-migrate-root-"));

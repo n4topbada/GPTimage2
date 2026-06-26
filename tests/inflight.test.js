@@ -10,13 +10,14 @@ process.env.IMA2_DB_PATH = join(TEST_DIR, "sessions.db");
 
 const {
   _resetForTests,
+  expireOverdueJobs,
   finishJob,
   listJobs,
   listTerminalJobs,
   setJobPhase,
   startJob,
-} = await import("../lib/inflight.ts");
-const { closeDb } = await import("../lib/db.ts");
+} = await import("../lib/inflight");
+const { closeDb } = await import("../lib/db");
 
 beforeEach(() => {
   _resetForTests();
@@ -79,6 +80,35 @@ test("active jobs expose reference diagnostics in metadata", () => {
   assert.equal(job.meta.refsCount, 1);
   assert.equal(job.meta.referenceBytes, 1234);
   assert.equal(job.meta.referenceB64Chars, 1648);
+});
+
+test("overdue active jobs expire as timeout terminal errors", () => {
+  const realNow = Date.now;
+  const startedAt = 1_781_500_000_000;
+  try {
+    Date.now = () => startedAt;
+    startJob({
+      requestId: "req_timeout",
+      kind: "classic",
+      prompt: "private prompt",
+      meta: { size: "2352x3520", model: "gpt-5.4-mini" },
+    });
+    setJobPhase("req_timeout", "streaming");
+
+    Date.now = () => startedAt + 300_001;
+    expireOverdueJobs();
+
+    assert.equal(listJobs({ kind: "classic" }).length, 0);
+    const terminal = listTerminalJobs({ kind: "classic" });
+    assert.equal(terminal.length, 1);
+    assert.equal(terminal[0].requestId, "req_timeout");
+    assert.equal(terminal[0].status, "error");
+    assert.equal(terminal[0].httpStatus, 504);
+    assert.equal(terminal[0].errorCode, "OAUTH_IMAGE_TIMEOUT");
+    assert.equal(terminal[0].meta.errorDetails.expiredByInflightReaper, true);
+  } finally {
+    Date.now = realNow;
+  }
 });
 
 test("terminal jobs remain observable across a reload-debug window", () => {

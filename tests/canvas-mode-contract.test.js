@@ -42,14 +42,16 @@ describe("canvas-mode contract", () => {
     assert.match(store, /closeCanvas/);
   });
 
-  it("has double-click handler on image", () => {
-    const canvas = readSource("ui/src/components/Canvas.tsx");
-    assert.match(canvas, /onDoubleClick/);
-    assert.match(canvas, /openCanvas/);
+  it("opens canvas mode from explicit blank-canvas and workspace controls", () => {
+    const canvas = readSource("ui/src/components/result/Canvas.tsx");
+    const workspace = readSource("ui/src/components/canvas-mode/CanvasModeWorkspace.tsx");
+    assert.match(canvas, /useCreateBlankCanvas/);
+    assert.match(workspace, /handleCloseCanvas/);
+    assert.match(workspace, /onCreateBlankCanvas/);
   });
 
   it("creates a blank canvas through the local import path", () => {
-    const canvas = readSource("ui/src/components/Canvas.tsx");
+    const canvas = readSource("ui/src/components/result/Canvas.tsx");
     const hook = readSource("ui/src/hooks/useCreateBlankCanvas.ts");
     const helper = readSource("ui/src/lib/canvas/blankCanvas.ts");
     const css = readSource("ui/src/index.css");
@@ -103,11 +105,12 @@ describe("canvas-mode contract", () => {
     assert.match(css, /\.canvas-mode-blank/);
   });
 
-  it("has canvas button in ResultActions", () => {
-    const actions = readSource("ui/src/components/ResultActions.tsx");
+  it("keeps ResultActions focused on continue/reference actions while canvas is open", () => {
+    const actions = readSource("ui/src/components/result/ResultActions.tsx");
     assert.match(actions, /canvasOpen/);
-    assert.match(actions, /openCanvas/);
-    assert.match(actions, /canvas\.open/);
+    assert.match(actions, /imageOverride\?: GenerateItem \| null/);
+    assert.match(actions, /useImageAsReference\(actionImage\)/);
+    assert.doesNotMatch(actions, /openCanvas/);
   });
 
   it("applies canvas mode class to main canvas", () => {

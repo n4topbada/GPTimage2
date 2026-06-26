@@ -15,7 +15,7 @@ Versions up to `v1.0.7` stored generated images inside the installed package:
 Starting with `v1.0.8`, generated images are stored under your user data folder:
 
 ```text
-macOS / Linux: ~/.ima2/generated
+Default: <packageRoot>/generated
 Windows: %USERPROFILE%\.ima2\generated
 ```
 
@@ -77,8 +77,8 @@ Get-ChildItem "$env:LOCALAPPDATA\npm-cache\_npx" -Recurse -Directory -Filter gen
 macOS / Linux:
 
 ```bash
-mkdir -p ~/.ima2/generated
-cp -n "/path/to/old/ima2-gen/generated/"* ~/.ima2/generated/
+mkdir -p ./generated
+cp -n "/path/to/old/ima2-gen/generated/"* ./generated/
 ```
 
 Windows PowerShell:

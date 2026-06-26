@@ -14,7 +14,7 @@ describe("browser attention badge contract", () => {
     const app = readSource("ui/src/App.tsx");
     const badge = readSource("ui/src/hooks/useBrowserAttentionBadge.ts");
     const store = readSource("ui/src/store/useAppStore.ts");
-    const canvas = readSource("ui/src/components/Canvas.tsx");
+    const canvas = readSource("ui/src/components/result/Canvas.tsx");
     const css = readSource("ui/src/index.css");
 
     assert.match(app, /import \{ useBrowserAttentionBadge \}/);
@@ -31,7 +31,7 @@ describe("browser attention badge contract", () => {
     assert.match(badge, /renderBadgeFavicon/);
 
     assert.match(store, /unseenGeneratedCount:\s*0/);
-    assert.match(store, /unseenGeneratedCount:\s*get\(\)\.unseenGeneratedCount \+ 1/);
+    assert.match(store, /set\(\{ unseenGeneratedCount:\s*get\(\)\.unseenGeneratedCount \+ 1 \}\)/);
     assert.match(store, /markGeneratedResultsSeen:\s*\(\) => set\(\{ unseenGeneratedCount:\s*0 \}\)/);
     assert.match(canvas, /markGeneratedResultsSeen\(\)/);
     assert.doesNotMatch(css, /\.app-status-layer/);

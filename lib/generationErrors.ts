@@ -9,6 +9,7 @@ const PASSTHROUGH_CODES = new Set([
   "OAUTH_IMAGE_TIMEOUT",
   "INVALID_REQUEST",
   "OAUTH_UPSTREAM_ERROR",
+  "IMAGE_TOOL_FAILED",
 ]);
 
 const SAFETY_CODES = new Set(["SAFETY_REFUSAL", "MODERATION_REFUSED", "moderation_blocked"]);
@@ -49,15 +50,16 @@ export function errorCodeFrom(err) {
 
 export function isNonRetryableGenerationError(err) {
   const code = errorCodeFrom(err);
-  if (SAFETY_CODES.has(code)) return false;
+  if (SAFETY_CODES.has(code)) return true;
   const status = Number(err?.status);
-  return code === "INVALID_REQUEST" || code === "OAUTH_IMAGE_TIMEOUT" || (Number.isFinite(status) && status >= 400 && status < 500);
+  return code === "INVALID_REQUEST" || code === "IMAGE_TOOL_FAILED" || code === "OAUTH_IMAGE_TIMEOUT" || (Number.isFinite(status) && status >= 400 && status < 500);
 }
 
 export function statusForErrorCode(code, fallback = 500) {
   if (code === "OAUTH_UNAVAILABLE" || code === "NETWORK_FAILED") return 503;
   if (code === "AUTH_CHATGPT_EXPIRED" || code === "AUTH_API_KEY_INVALID") return 401;
   if (code === "UPSTREAM_5XX") return 502;
+  if (code === "IMAGE_TOOL_FAILED") return 502;
   if (code === "OAUTH_IMAGE_TIMEOUT") return 504;
   if (code === "INVALID_REQUEST") return 400;
   if (code === "SAFETY_REFUSAL" || code === "MODERATION_REFUSED" || code === "moderation_blocked") return 422;
@@ -76,13 +78,23 @@ export function normalizeGenerationFailure(lastErr, options: any = {}) {
     if (lastErr?.upstreamParam) err.upstreamParam = lastErr.upstreamParam;
     if (lastErr?.eventType) err.eventType = lastErr.eventType;
     if (typeof lastErr?.eventCount === "number") err.eventCount = lastErr.eventCount;
+    if (lastErr?.diagnosticReason) err.diagnosticReason = lastErr.diagnosticReason;
+    if (lastErr?.upstreamDebug) err.upstreamDebug = lastErr.upstreamDebug;
     return err;
   }
   if (SAFETY_CODES.has(code)) {
-    const err: any = new Error(options.safetyMessage || lastErr?.message || "Content generation refused after retries");
+    const err: any = new Error(options.safetyMessage || lastErr?.message || "Content generation refused by moderation");
     err.code = "SAFETY_REFUSAL";
     err.status = 422;
     err.cause = lastErr;
+    if (lastErr?.upstreamCode) err.upstreamCode = lastErr.upstreamCode;
+    else if (lastErr?.code && lastErr.code !== "SAFETY_REFUSAL") err.upstreamCode = lastErr.code;
+    if (lastErr?.upstreamType) err.upstreamType = lastErr.upstreamType;
+    if (lastErr?.upstreamParam) err.upstreamParam = lastErr.upstreamParam;
+    if (lastErr?.eventType) err.eventType = lastErr.eventType;
+    if (typeof lastErr?.eventCount === "number") err.eventCount = lastErr.eventCount;
+    if (lastErr?.diagnosticReason) err.diagnosticReason = lastErr.diagnosticReason;
+    if (lastErr?.upstreamDebug) err.upstreamDebug = lastErr.upstreamDebug;
     return err;
   }
   // Empty response with metadata → likely a technical limitation (unsupported size/quality/model)
@@ -110,6 +122,7 @@ export function normalizeGenerationFailure(lastErr, options: any = {}) {
     if (lastErr.retryKind) err.retryKind = lastErr.retryKind;
     if (typeof lastErr.referencesDroppedOnRetry === "boolean") err.referencesDroppedOnRetry = lastErr.referencesDroppedOnRetry;
     if (typeof lastErr.developerPromptDroppedOnRetry === "boolean") err.developerPromptDroppedOnRetry = lastErr.developerPromptDroppedOnRetry;
+    if (lastErr.upstreamDebug) err.upstreamDebug = lastErr.upstreamDebug;
     const diagnosticReason = diagnosticReasonFrom(lastErr);
     if (diagnosticReason) err.diagnosticReason = diagnosticReason;
     return err;

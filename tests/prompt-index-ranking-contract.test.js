@@ -1,8 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { listCuratedSources } from "../lib/promptImport/curatedSources.ts";
-import { extractGptImageHints } from "../lib/promptImport/gptImageHints.ts";
-import { rankPromptCandidates } from "../lib/promptImport/rankPromptCandidates.ts";
+import { listCuratedSources } from "../lib/promptImport/curatedSources";
+import { extractGptImageHints } from "../lib/promptImport/gptImageHints";
+import { rankPromptCandidates } from "../lib/promptImport/rankPromptCandidates";
 
 describe("prompt index ranking contract", () => {
   it("ships curated Nano Banana registry seeds without default manual-review search", () => {

@@ -11,10 +11,11 @@
   },
   "include": [
     "server.ts",
+    "llmServer.ts",
     "config.ts",
     "lib/**/*.ts",
     "routes/**/*.ts",
-    "types/**/*.ts"
+    "lib/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

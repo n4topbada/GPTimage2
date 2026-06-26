@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { findAvailablePort } from "../lib/runtimePorts.ts";
+import { findAvailablePort } from "../lib/runtimePorts";
 
 const FAKE_HOME = mkdtempSync(join(tmpdir(), "ima2-b9-home-"));
 const GEN_DIR = mkdtempSync(join(tmpdir(), "ima2-b9-generated-"));

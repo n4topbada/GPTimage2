@@ -4,6 +4,7 @@ import { ulid } from "ulid";
 import { generateViaOAuth } from "./oauthProxy.js";
 import { readTemplateBaseB64 } from "./cardNewsTemplateStore.js";
 import { writeCardNewsManifest, writeCardSidecar } from "./cardNewsManifestStore.js";
+import { queueGeneratedDriveUpload } from "./driveUpload.js";
 
 function formatRenderedTextInstruction(textFields = []) {
   const visible = (Array.isArray(textFields) ? textFields : [])
@@ -97,6 +98,7 @@ export async function generateCardNewsSet(ctx, input, options: any = {}) {
         error = { code: "CARD_NEWS_EMPTY_IMAGE", message: "No image data returned" };
       } else {
         await writeFile(join(dir, imageFilename), Buffer.from(result.b64, "base64"));
+        queueGeneratedDriveUpload(ctx, join("cardnews", setId, imageFilename));
       }
     } catch (err) {
       error = { code: err.code || "CARD_NEWS_CARD_FAILED", message: err.message || "Card generation failed" };
@@ -128,6 +130,7 @@ export async function generateCardNewsSet(ctx, input, options: any = {}) {
       revisedPrompt: result?.revisedPrompt || null,
     };
     await writeCardSidecar(dir, sidecarFilename, sidecar);
+    if (!error) queueGeneratedDriveUpload(ctx, join("cardnews", setId, sidecarFilename), { includeSidecar: false });
     if (typeof options.onCardDone === "function") await options.onCardDone(sidecar);
     return sidecar;
   });

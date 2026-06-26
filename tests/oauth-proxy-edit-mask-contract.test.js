@@ -10,11 +10,12 @@ function readSource(path) {
 }
 
 describe("oauth proxy edit mask contract", () => {
-  it("rejects masked edits explicitly until a verified provider path exists", () => {
+  it("forwards validated masked edits through the image generation tool", () => {
     const source = readSource("lib/oauthProxy.ts");
-    assert.match(source, /typeof options\.mask === "string"/);
-    assert.match(source, /mask_unsupported/);
-    assert.match(source, /EDIT_MASK_NOT_SUPPORTED/);
-    assert.doesNotMatch(source, /maskB64[\s\S]{0,200}input_text/);
+    assert.match(source, /const maskB64 = typeof options\.mask === "string"/);
+    assert.match(source, /input_image_mask/);
+    assert.match(source, /data:image\/png;base64,\$\{maskB64\}/);
+    assert.match(source, /data:image\/\$\{maskB64 \? "png" : "jpeg"\};base64/);
+    assert.doesNotMatch(source, /EDIT_MASK_NOT_SUPPORTED/);
   });
 });

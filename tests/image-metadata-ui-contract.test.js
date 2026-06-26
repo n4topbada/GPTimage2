@@ -25,7 +25,8 @@ describe("image metadata UI contract", () => {
 
     assert.match(store, /type MetadataRestoreState/);
     assert.match(store, /metadataRestore:\s*MetadataRestoreState/);
-    assert.match(store, /readDroppedImageMetadata:\s*\(file: File,\s*targetNodeId\?: ClientNodeId \| null\) => Promise<boolean>/);
+    assert.match(store, /readDroppedImageMetadata:\s*\(file: File\) => Promise<boolean>/);
+    assert.doesNotMatch(store, /targetNodeId\?: ClientNodeId \| null/);
     assert.match(store, /const result = await readImageMetadata\(\{ filename: file\.name,\s*dataUrl \}\)/);
     assert.match(store, /if \(!result\.metadata\) return false/);
     assert.match(store, /metadataRestore:\s*\{/);
@@ -34,27 +35,21 @@ describe("image metadata UI contract", () => {
     assert.match(store, /addMetadataRestoreAsReference:\s*\(\) =>/);
   });
 
-  it("connects metadata restore to classic and node drop targets", () => {
-    const promptComposer = readSource("ui/src/components/PromptComposer.tsx");
-    const imageNode = readSource("ui/src/components/ImageNode.tsx");
+  it("connects metadata restore to the classic drop target", () => {
+    const promptComposer = readSource("ui/src/components/prompt/PromptComposer.tsx");
 
     assert.match(promptComposer, /readDroppedImageMetadata/);
     assert.match(promptComposer, /const handled = await readDroppedImageMetadata\(files\[0\]\)/);
     assert.match(promptComposer, /if \(handled\) return/);
     assert.match(promptComposer, /await addReferences\(files\)/);
-
-    assert.match(imageNode, /readDroppedImageMetadata/);
-    assert.match(imageNode, /const handled = await readDroppedImageMetadata\(files\[0\], id\)/);
-    assert.match(imageNode, /if \(handled\) return/);
-    assert.match(imageNode, /await addNodeReferences\(id, files\)/);
   });
 
   it("renders a confirmation dialog before restore actions", () => {
     const app = readSource("ui/src/App.tsx");
-    const dialog = readSource("ui/src/components/MetadataRestoreDialog.tsx");
+    const dialog = readSource("ui/src/components/feedback/MetadataRestoreDialog.tsx");
     const css = readSource("ui/src/index.css");
 
-    assert.match(app, /import \{ MetadataRestoreDialog \} from "\.\/components\/MetadataRestoreDialog"/);
+    assert.match(app, /import \{ MetadataRestoreDialog \} from "\.\/components\/feedback\/MetadataRestoreDialog"/);
     assert.match(app, /<MetadataRestoreDialog \/>/);
     assert.match(dialog, /metadataRestore/);
     assert.match(dialog, /applyMetadataRestore/);

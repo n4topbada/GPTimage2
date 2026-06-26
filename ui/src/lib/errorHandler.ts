@@ -1,5 +1,5 @@
 // 0.09.8 — centralized catch-block dispatcher.
-// Reads `err.code` (set by api.ts jsonFetch / postNodeGenerate), falls back to
+// Reads `err.code` (set by api.ts jsonFetch), falls back to
 // pattern classifier, then routes to showToast or showErrorCard based on the
 // spec registered in errorCodes.ts.
 

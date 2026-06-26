@@ -9,85 +9,100 @@ function readSource(path) {
   return readFileSync(join(root, path), "utf8");
 }
 
-describe("generation controls custom plus UX contract", () => {
+describe("generation controls UX contract", () => {
   it("keeps the right panel as the generation control home", () => {
-    const rightPanel = readSource("ui/src/components/RightPanel.tsx");
+    const rightPanel = readSource("ui/src/components/layout/RightPanel.tsx");
 
-    assert.match(rightPanel, /import \{ SizePicker \} from "\.\/SizePicker"/);
-    assert.match(rightPanel, /import \{ CountPicker \} from "\.\/CountPicker"/);
-    assert.match(rightPanel, /lazy\(\(\) =>\s*import\("\.\/PromptLibraryPanel"\)/);
+    assert.match(rightPanel, /import \{ SizePicker \} from "\.\.\/generation\/SizePicker"/);
+    assert.match(rightPanel, /import \{ GenerationModePicker \} from "\.\.\/generation\/GenerationModePicker"/);
+    assert.match(rightPanel, /lazy\(\(\) =>\s*import\("\.\.\/prompt\/PromptLibraryPanel"\)/);
     assert.match(rightPanel, /<SizePicker \/>/);
-    assert.match(rightPanel, /<CountPicker \/>/);
-    assert.match(rightPanel, /promptLibraryOpen/);
+    assert.match(rightPanel, /<GenerationModePicker \/>/);
     assert.match(rightPanel, /<LazyPromptLibraryPanel variant="embedded" \/>/);
-    assert.match(rightPanel, /right-panel-tabs/);
-    assert.doesNotMatch(rightPanel, /COUNT_ITEMS/);
+    assert.match(rightPanel, /right-panel-library/);
+    assert.doesNotMatch(rightPanel, /promptLibraryOpen/);
+    assert.doesNotMatch(rightPanel, /right-panel-tabs/);
+    assert.doesNotMatch(rightPanel, /CostEstimate/);
+    assert.doesNotMatch(rightPanel, /fixedPng/);
+    assert.doesNotMatch(rightPanel, /fixedLow/);
+    assert.doesNotMatch(rightPanel, /<OptionGroup<Format>/);
+    assert.doesNotMatch(rightPanel, /<OptionGroup<Moderation>/);
   });
 
-  it("preserves the existing size preset grid and visible auto option", () => {
-    const sizePicker = readSource("ui/src/components/SizePicker.tsx");
-    const sizeLib = readSource("ui/src/lib/size.ts");
+  it("uses the requested low and high resolution ratio matrix", () => {
+    const sizePicker = readSource("ui/src/components/generation/SizePicker.tsx");
 
-    for (const row of ["SIZE_PRESETS_ROW1", "SIZE_PRESETS_ROW2", "SIZE_PRESETS_ROW3", "SIZE_PRESETS_ROW4"]) {
-      assert.match(sizePicker, new RegExp(`toItems\\(${row}\\)`));
+    assert.match(sizePicker, /value: "auto"/);
+    assert.match(sizePicker, /label: "자동"/);
+    for (const size of [
+      "2048x1152",
+      "1872x1248",
+      "1248x1872",
+      "1152x2048",
+      "1536x1536",
+      "3840x2160",
+      "3520x2352",
+      "2352x3520",
+      "2160x3840",
+      "2880x2880",
+    ]) {
+      assert.match(sizePicker, new RegExp(size));
     }
-    assert.match(sizePicker, /getSizePresetsRow5\(\)\.filter\(\(item\) => item\.value === "auto"\)/);
-    assert.match(sizeLib, /value: "auto"/);
-    assert.match(sizeLib, /value: "3840x2160"/);
-    assert.match(sizeLib, /value: "2160x3840"/);
-    assert.doesNotMatch(sizeLib, /3824x2160/);
-    assert.doesNotMatch(sizeLib, /2160x3824/);
+    for (const ratio of ["16:9", "3:2", "2:3", "9:16", "1:1"]) {
+      assert.match(sizePicker, new RegExp(ratio));
+    }
+    assert.doesNotMatch(sizePicker, /저/);
+    assert.doesNotMatch(sizePicker, /고/);
+    assert.doesNotMatch(sizePicker, /title=\{t\("size\.title"\)\}/);
+    assert.doesNotMatch(sizePicker, /4096x4096/);
+    assert.doesNotMatch(sizePicker, /ResolutionLevel/);
+    assert.doesNotMatch(sizePicker, /normalizeCustomSizePair/);
   });
 
-  it("keeps arbitrary custom slot sizes out of the SizePreset union", () => {
+  it("keeps the requested size matrix in the SizePreset union", () => {
     const types = readSource("ui/src/types.ts");
+    const sizePresetBlock = types.match(/export type SizePreset =[\s\S]*?;/)?.[0] ?? "";
 
-    assert.match(types, /export type SizePreset =/);
-    assert.match(types, /"3840x2160"/);
-    assert.match(types, /"2160x3840"/);
-    assert.match(types, /"custom"/);
-    assert.doesNotMatch(types, /"2400x1024"/);
-    assert.doesNotMatch(types, /"3840x1648"/);
+    assert.match(sizePresetBlock, /export type SizePreset =/);
+    assert.match(sizePresetBlock, /"auto"/);
+    assert.match(sizePresetBlock, /"2048x1152"/);
+    assert.match(sizePresetBlock, /"1872x1248"/);
+    assert.match(sizePresetBlock, /"1248x1872"/);
+    assert.match(sizePresetBlock, /"1152x2048"/);
+    assert.match(sizePresetBlock, /"1536x1536"/);
+    assert.match(sizePresetBlock, /"3840x2160"/);
+    assert.match(sizePresetBlock, /"3520x2352"/);
+    assert.match(sizePresetBlock, /"2352x3520"/);
+    assert.match(sizePresetBlock, /"2160x3840"/);
+    assert.match(sizePresetBlock, /"2880x2880"/);
+    assert.match(sizePresetBlock, /"custom"/);
   });
 
-  it("caps saved custom size slots at three and uses explicit replace behavior", () => {
-    const sizeLib = readSource("ui/src/lib/size.ts");
-    const slotLib = readSource("ui/src/lib/customSizeSlots.ts");
-    const sizePicker = readSource("ui/src/components/SizePicker.tsx");
-
-    assert.match(sizeLib, /export const MAX_CUSTOM_SIZE_SLOTS = 3/);
-    assert.match(slotLib, /CUSTOM_SIZE_SLOTS_STORAGE_KEY = "ima2\.customSizeSlots"/);
-    assert.match(slotLib, /replaceCustomSizeSlot/);
-    assert.match(sizePicker, /slots\.length >= MAX_CUSTOM_SIZE_SLOTS/);
-    assert.match(sizePicker, /setReplaceSlotId/);
-    assert.match(sizePicker, /replaceCustomSizeSlot\(slots, replaceSlotId, normalized\)/);
-  });
-
-  it("collapses the custom editor when another size option is selected or saved", () => {
-    const sizePicker = readSource("ui/src/components/SizePicker.tsx");
-
-    assert.match(sizePicker, /function selectPreset\(nextPreset: SizePreset\)/);
-    assert.match(sizePicker, /if \(nextPreset !== "custom"\) \{[\s\S]*?setEditorOpen\(false\);[\s\S]*?setReplaceSlotId\(null\);[\s\S]*?\}/);
-    assert.match(sizePicker, /onChange=\{selectPreset\}/);
-    assert.match(sizePicker, /onClick=\{\(\) => selectPreset\(item\.value\)\}/);
-    assert.match(sizePicker, /setEditorOpen\(false\);[\s\S]*?\}\r?\n\r?\n  const reasonText =/);
-  });
-
-  it("offers 21:9 only as a custom ratio preset", () => {
-    const sizeLib = readSource("ui/src/lib/size.ts");
-
-    assert.match(sizeLib, /CUSTOM_RATIO_PRESETS/);
-    assert.match(sizeLib, /id: "21:9"/);
-    assert.doesNotMatch(sizeLib, /value: "21:9"/);
-  });
-
-  it("supports manual count input clamped to 1..8", () => {
-    const countPicker = readSource("ui/src/components/CountPicker.tsx");
+  it("offers direct multi request counts up to ten and staged modes", () => {
+    const modePicker = readSource("ui/src/components/generation/GenerationModePicker.tsx");
     const store = readSource("ui/src/store/useAppStore.ts");
 
-    assert.match(countPicker, /const QUICK_COUNTS = \[1, 2, 4\] as const/);
-    assert.match(countPicker, /inputMode="numeric"/);
-    assert.match(countPicker, /Math\.min\(8, Math\.max\(1, Math\.trunc\(value \|\| 1\)\)\)/);
+    assert.match(modePicker, /"single"/);
+    assert.match(modePicker, /"multi2"/);
+    assert.match(modePicker, /"multi3"/);
+    assert.match(modePicker, /"multi4"/);
+    assert.match(modePicker, /"multi5"/);
+    assert.match(modePicker, /"sequence2"/);
+    assert.match(modePicker, /"sequence4"/);
+    assert.match(modePicker, /setCount\(1\)/);
+    assert.match(modePicker, /setCount\(2\)/);
+    assert.match(modePicker, /setCount\(3\)/);
+    assert.match(modePicker, /setCount\(4\)/);
+    assert.match(modePicker, /setCount\(5\)/);
+    assert.match(modePicker, /setMultimode\(true\)/);
+    assert.match(store, /Math\.min\(10, Math\.max\(1, normalizeCount\(s\.count\)\)\)/);
+    assert.match(store, /await Promise\.all\(/);
+    assert.match(store, /flightIds\.map\(async \(requestId\) =>/);
+    assert.match(store, /const added = await addResponseToHistory\(res, requestId\);/);
+    assert.match(store, /markFlightTerminal\(requestId, \{\s*phase: "completed"/);
+    assert.match(store, /n: 1/);
+    assert.doesNotMatch(store, /Promise\.allSettled\(/);
+    assert.doesNotMatch(store, /n: s\.count/);
     assert.match(store, /function normalizeCount\(value: number\): Count/);
     assert.match(store, /const next = normalizeCount\(count\);/);
     assert.match(store, /saveGenerationDefaultsPatch\(\{ count: next \}\);/);
@@ -100,35 +115,47 @@ describe("generation controls custom plus UX contract", () => {
     assert.match(store, /function loadGenerationDefaults\(\): GenerationDefaults/);
     assert.match(store, /function saveGenerationDefaultsPatch\(patch: GenerationDefaults\): void/);
     assert.match(store, /prompt: storedGenerationDefaults\.prompt \?\? ""/);
-    assert.match(store, /sizePreset: storedGenerationDefaults\.sizePreset \?\? "1024x1024"/);
+    assert.match(store, /sizePreset: storedGenerationDefaults\.sizePreset \?\? "1536x1536"/);
     assert.match(store, /setPrompt: \(prompt\) => \{[\s\S]*?saveGenerationDefaultsPatch\(\{ prompt \}\);/);
     assert.match(store, /setSizePreset: \(sizePreset\) => \{[\s\S]*?saveGenerationDefaultsPatch\(\{ sizePreset \}\);/);
     assert.match(store, /saveGenerationDefaultsPatch\(\{ insertedPrompts \}\);/);
   });
 
-  it("updates 3840 constraints across cost, i18n, and contracts", () => {
-    const cost = readSource("ui/src/lib/cost.ts");
-    const sizeLib = readSource("ui/src/lib/size.ts");
-    const sizePicker = readSource("ui/src/components/SizePicker.tsx");
-    const en = readSource("ui/src/i18n/en.json");
-    const ko = readSource("ui/src/i18n/ko.json");
+  it("keeps high quality fixed in generation requests", () => {
+    const store = readSource("ui/src/store/useAppStore.ts");
 
-    assert.match(cost, /"3840x2160"/);
-    assert.match(cost, /"2160x3840"/);
-    assert.doesNotMatch(cost, /3824x2160/);
-    assert.match(sizeLib, /export const IMAGE_SIZE_MAX_SQUARE/);
-    assert.match(sizePicker, /squareMaxHint/);
-    assert.match(sizePicker, /preview\.reasons\.includes\("maxPixels"\)/);
-    assert.match(sizePicker, /IMAGE_SIZE_MAX_SQUARE/);
-    assert.match(en, /max edge 3840/);
-    assert.match(en, /Square maximum is \{size\}/);
-    assert.match(ko, /최대 변 3840/);
-    assert.match(ko, /정사각형 최대는 \{size\}/);
-    for (const source of [en, ko]) {
-      assert.match(source, /"customPlus"/);
-      assert.match(source, /"customSlotLimit"/);
-      assert.match(source, /"count"/);
-      assert.match(source, /"highCountHint"/);
+    assert.match(store, /quality: "high"/);
+    assert.match(store, /quality: "high" as Quality/);
+    assert.doesNotMatch(readSource("ui/src/components/layout/RightPanel.tsx"), /setQuality/);
+  });
+
+  it("matches the server-side image tool size allowlist", () => {
+    const imageToolSize = readSource("lib/imageToolSize.ts");
+    const sizePicker = readSource("ui/src/components/generation/SizePicker.tsx");
+
+    assert.match(imageToolSize, /"auto"/);
+    assert.match(sizePicker, /value: "auto"/);
+    for (const size of [
+      "2048x1152",
+      "1872x1248",
+      "1248x1872",
+      "1152x2048",
+      "1536x1536",
+      "3840x2160",
+      "3520x2352",
+      "2352x3520",
+      "2160x3840",
+      "2880x2880",
+    ]) {
+      assert.match(imageToolSize, new RegExp(`"${size}"`));
+      assert.match(sizePicker, new RegExp(`${size}`));
     }
+  });
+
+  it("keeps measured image tool constraints in shared sizing helpers", () => {
+    const sizeLib = readSource("ui/src/lib/size.ts");
+
+    assert.match(sizeLib, /IMAGE_SIZE_MAX_EDGE = 3840/);
+    assert.match(sizeLib, /IMAGE_SIZE_MAX_PIXELS = 8_294_400/);
   });
 });

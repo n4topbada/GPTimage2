@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Dev runner: build UI with dev diagnostics enabled, then launch the watched server.
-// Node mode is a product feature now; VITE_IMA2_DEV remains for future dev-only UI gates.
+// VITE_IMA2_DEV remains for future dev-only UI gates.
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";

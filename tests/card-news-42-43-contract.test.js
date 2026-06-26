@@ -67,22 +67,21 @@ describe("Card News 42/43 editor and reopen contract", () => {
     assert.match(types, /imageFilename\?: string/);
   });
 
-  it("adds gallery set actions without replacing reopen behavior", () => {
-    const gallery = readSource("ui/src/components/GalleryModal.tsx");
-    const tile = readSource("ui/src/components/CardNewsGalleryTile.tsx");
+  it("keeps Card News sets internal to the Card News workspace, not the main gallery", () => {
+    const gallery = readSource("ui/src/components/gallery/GalleryModal.tsx");
+    const tile = readSource("ui/src/components/gallery/CardNewsGalleryTile.tsx");
     const en = readSource("ui/src/i18n/en.json");
     const ko = readSource("ui/src/i18n/ko.json");
     const css = readSource("ui/src/index.css");
 
-    assert.match(gallery, /cardNewsManifestDownloadUrl/);
-    assert.match(gallery, /handleCopyCardNewsSetPath/);
-    assert.match(gallery, /handleDownloadCardNewsManifest/);
-    assert.match(gallery, /generated\/cardnews\/\$\{item\.setId\}/);
-    assert.match(gallery, /CardNewsGalleryTile/);
+    assert.match(gallery, /item\.kind !== "card-news-set" && item\.kind !== "card-news-card"/);
+    assert.doesNotMatch(gallery, /cardNewsManifestDownloadUrl/);
+    assert.doesNotMatch(gallery, /handleCopyCardNewsSetPath/);
+    assert.doesNotMatch(gallery, /handleDownloadCardNewsManifest/);
+    assert.doesNotMatch(gallery, /CardNewsGalleryTile/);
     assert.match(tile, /gallery-card-news-actions/);
     assert.match(tile, /item\.cards/);
     assert.match(tile, /leadHeadline/);
-    assert.match(gallery, /handleOpenCardNewsSet\(next\)/);
     assert.match(css, /\.gallery-card-news-actions/);
     assert.match(css, /\.gallery-card-news-strip img/);
     for (const source of [en, ko]) {

@@ -13,26 +13,37 @@ test("UI maps proxy and network errors to card surfaces", () => {
   assert.doesNotMatch(source, /content generation refused[^}]+MODERATION_REFUSED/s);
 });
 
-test("node API preserves status on JSON and SSE errors", () => {
-  const source = readFileSync("ui/src/lib/nodeApi.ts", "utf-8");
-  assert.match(source, /export type NodeErrorResponse = \{[\s\S]*status\?: number;/);
-  assert.match(source, /e\.status = err\?\.status \?\? res\.status;/);
-  assert.match(source, /e\.status = err\?\.status;/);
-  assert.match(source, /No image data returned from the node stream/);
-  assert.match(source, /e\.code = "EMPTY_RESPONSE"/);
-});
-
-test("UI surfaces server terminal generation errors from inflight polling", () => {
+test("UI keeps terminal generation errors in the queue instead of opening a popup", () => {
   const store = readFileSync("ui/src/store/useAppStore.ts", "utf-8");
   const api = readFileSync("ui/src/lib/api.ts", "utf-8");
+  const list = readFileSync("ui/src/components/gallery/InFlightList.tsx", "utf-8");
 
   assert.match(api, /No image data returned from the multimode stream/);
   assert.match(api, /e\.code = "EMPTY_RESPONSE"/);
   assert.match(store, /includeTerminal: true/);
-  assert.match(store, /terminalJobError/);
-  assert.match(store, /terminal\.status === "error"/);
-  assert.match(store, /handleError\(err, get\(\)\)/);
+  assert.match(store, /terminalToPersistedInFlight/);
+  assert.match(store, /phase: isError \? "error" : "completed"/);
+  assert.match(store, /recordFailureLog/);
+  assert.match(store, /errorMessage/);
+  assert.match(store, /nextInflight\.push\(terminalFlight\)/);
+  assert.match(readFileSync("ui/src/components/gallery/FailureLogModal.tsx", "utf-8"), /failureLog\.title/);
+  assert.doesNotMatch(store, /terminalErrors/);
+  assert.doesNotMatch(store, /for \(const err of terminalErrors\)/);
+  assert.match(list, /completed:\s*".*"/);
+  assert.match(list, /error:\s*".*"/);
+  assert.match(list, /f\.terminal \? null/);
   assert.doesNotMatch(store, /if \(cur\.length === 0\) \{\s*await get\(\)\.reconcileInflight\(\);/);
+});
+
+test("classic generation reserves a browser connection for polling while batching", () => {
+  const store = readFileSync("ui/src/store/useAppStore.ts", "utf-8");
+
+  assert.match(store, /const MAX_CLIENT_GENERATION_POSTS = 5/);
+  assert.match(store, /clientGenerationPostQueue/);
+  assert.match(store, /withGenerationPostSlot/);
+  assert.match(store, /return postGenerate\(\{/);
+  assert.match(store, /return postEdit\(\{/);
+  assert.match(store, /markFlightPhase\(requestId, "requesting"\)/);
 });
 
 test("invalid request and open-folder feedback i18n keys exist", () => {
@@ -44,4 +55,6 @@ test("invalid request and open-folder feedback i18n keys exist", () => {
   assert.match(ko, /"invalidRequest"/);
   assert.match(en, /"emptyResponse"/);
   assert.match(ko, /"emptyResponse"/);
+  assert.match(en, /"failureLog"/);
+  assert.match(ko, /"failureLog"/);
 });

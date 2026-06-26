@@ -50,10 +50,6 @@ function pickInt(envVal, fileVal, fallback) {
   const n = Number(candidate);
   return Number.isFinite(n) ? n : fallback;
 }
-function pickPositiveInt(envVal, fileVal, fallback) {
-  const n = pickInt(envVal, fileVal, fallback);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
-}
 function pickStr(envVal, fileVal, fallback) {
   return firstDefined(envVal, fileVal) ?? fallback;
 }
@@ -64,6 +60,18 @@ function pickBool(envVal, fileVal, fallback) {
   const s = String(v).toLowerCase();
   return s === "1" || s === "true" || s === "yes";
 }
+
+const defaultGeneratedDir = join(packageRoot, "generated");
+const resolvedGeneratedDir = pickStr(
+  env.IMA2_GENERATED_DIR,
+  fileCfg.storage?.generatedDir,
+  defaultGeneratedDir,
+);
+const resolvedTrashDir = pickStr(
+  env.IMA2_TRASH_DIR,
+  fileCfg.storage?.trashDir,
+  join(resolvedGeneratedDir, ".trash"),
+);
 
 export function defaultLogLevelForEnv(runtimeEnv = env) {
   return runtimeEnv.IMA2_DEV === "1" ? "debug" : "info";
@@ -84,7 +92,7 @@ export const config = {
       12 * 1024 * 1024,
     ),
     maxRefCount: pickInt(env.IMA2_MAX_REF_COUNT, fileCfg.limits?.maxRefCount, 5),
-    maxParallel: pickInt(env.IMA2_MAX_PARALLEL, fileCfg.limits?.maxParallel, 8),
+    maxParallel: pickInt(env.IMA2_MAX_PARALLEL, fileCfg.limits?.maxParallel, 10),
     graphMaxNodes: pickInt(env.IMA2_GRAPH_MAX_NODES, fileCfg.limits?.graphMaxNodes, 500),
     graphMaxEdges: pickInt(env.IMA2_GRAPH_MAX_EDGES, fileCfg.limits?.graphMaxEdges, 1000),
     promptImportMaxFileBytes: pickInt(
@@ -184,8 +192,9 @@ export const config = {
     generationTimeoutMs: pickInt(
       env.IMA2_OAUTH_GENERATION_TIMEOUT_MS,
       fileCfg.oauth?.generationTimeoutMs,
-      400 * 1000,
+      300 * 1000,
     ),
+    cacheBust: pickBool(env.IMA2_OAUTH_CACHE_BUST, fileCfg.oauth?.cacheBust, false),
     restartDelayMs: pickInt(env.IMA2_OAUTH_RESTART_DELAY_MS, fileCfg.oauth?.restartDelayMs, 5000),
     researchSuffix: pickStr(
       env.IMA2_RESEARCH_SUFFIX,
@@ -198,14 +207,21 @@ export const config = {
         : ["auto", "low"],
     ),
   },
+  llm: {
+    port: pickInt(firstDefined(env.IMA2_LLM_PORT, env.LLM_PORT), fileCfg.llm?.port, 10532),
+    host: pickStr(env.IMA2_LLM_HOST, fileCfg.llm?.host, "127.0.0.1"),
+    bodyLimit: pickStr(env.IMA2_LLM_BODY_LIMIT, fileCfg.llm?.bodyLimit, "10mb"),
+    timeoutMs: pickInt(env.IMA2_LLM_TIMEOUT_MS, fileCfg.llm?.timeoutMs, 120_000),
+    defaultModel: pickStr(env.IMA2_LLM_MODEL, fileCfg.llm?.defaultModel, "gpt-5.4-mini"),
+  },
   github: {
     token: pickStr(env.IMA2_GITHUB_TOKEN, fileCfg.github?.token, ""),
   },
   storage: {
     configDir,
     packageRoot,
-    generatedDir: pickStr(env.IMA2_GENERATED_DIR, fileCfg.storage?.generatedDir, join(configDir, "generated")),
-    trashDir: pickStr(env.IMA2_TRASH_DIR, fileCfg.storage?.trashDir, join(configDir, "generated", ".trash")),
+    generatedDir: resolvedGeneratedDir,
+    trashDir: resolvedTrashDir,
     generatedDirName: pickStr(env.IMA2_GENERATED_DIRNAME, fileCfg.storage?.generatedDirName, "generated"),
     trashDirName: pickStr(env.IMA2_TRASH_DIRNAME, fileCfg.storage?.trashDirName, ".trash"),
     dbPath: pickStr(env.IMA2_DB_PATH, fileCfg.storage?.dbPath, join(configDir, "sessions.db")),
@@ -222,6 +238,13 @@ export const config = {
     configFile: join(configDir, "config.json"),
     advertiseFile: pickStr(env.IMA2_ADVERTISE_FILE, fileCfg.storage?.advertiseFile, join(configDir, "server.json")),
     staticMaxAge: pickStr(env.IMA2_STATIC_MAX_AGE, fileCfg.storage?.staticMaxAge, "1y"),
+  },
+  driveUpload: {
+    enabled: pickBool(env.IMA2_DRIVE_UPLOAD_ENABLED, fileCfg.driveUpload?.enabled, false),
+    command: pickStr(env.IMA2_RCLONE_BIN, fileCfg.driveUpload?.command, "rclone"),
+    remote: pickStr(env.IMA2_DRIVE_REMOTE, fileCfg.driveUpload?.remote, ""),
+    folder: pickStr(env.IMA2_DRIVE_FOLDER, fileCfg.driveUpload?.folder, "ima2-gen"),
+    includeSidecar: pickBool(env.IMA2_DRIVE_INCLUDE_SIDECAR, fileCfg.driveUpload?.includeSidecar, true),
   },
   ids: {
     generatedHexBytes: pickInt(env.IMA2_GENERATED_HEX_BYTES, fileCfg.ids?.generatedHexBytes, 4),
@@ -240,13 +263,13 @@ export const config = {
     model: pickStr(env.IMA2_STYLE_MODEL, fileCfg.styleSheet?.model, "gpt-5.4-mini"),
   },
   imageModels: {
-    default: pickStr(env.IMA2_IMAGE_MODEL_DEFAULT, fileCfg.imageModels?.default, "gpt-5.4-mini"),
+    default: pickStr(env.IMA2_IMAGE_MODEL_DEFAULT, fileCfg.imageModels?.default, "gpt-5.5"),
     valid: new Set(["gpt-5.5", "gpt-5.4", "gpt-5.4-mini"]),
     unsupported: new Set(["gpt-5.3-codex-spark"]),
     reasoningEffort: pickStr(
       env.IMA2_REASONING_EFFORT,
       fileCfg.imageModels?.reasoningEffort,
-      "medium",
+      "none",
     ),
     validReasoningEfforts: new Set(["none", "low", "medium", "high", "xhigh"]),
   },
@@ -267,19 +290,6 @@ export const config = {
       false,
     ),
   },
-  comfy: {
-    defaultUrl: pickStr(env.IMA2_COMFY_URL, fileCfg.comfy?.defaultUrl, "http://127.0.0.1:8188"),
-    uploadTimeoutMs: pickPositiveInt(
-      env.IMA2_COMFY_UPLOAD_TIMEOUT_MS,
-      fileCfg.comfy?.uploadTimeoutMs,
-      30_000,
-    ),
-    maxUploadBytes: pickPositiveInt(
-      env.IMA2_COMFY_MAX_UPLOAD_BYTES,
-      fileCfg.comfy?.maxUploadBytes,
-      50 * 1024 * 1024,
-    ),
-  },
   dev: {
     viteDevMode: pickBool(env.VITE_IMA2_DEV, fileCfg.dev?.viteDevMode, false),
   },
@@ -292,6 +302,8 @@ export default config;
 export const PORT = config.server.port;
 export const OAUTH_PORT = config.oauth.proxyPort;
 export const OAUTH_URL = `http://127.0.0.1:${config.oauth.proxyPort}`;
+export const LLM_PORT = config.llm.port;
+export const LLM_URL = `http://127.0.0.1:${config.llm.port}`;
 export const CONFIG_DIR = config.storage.configDir;
 export const CONFIG_FILE = config.storage.configFile;
 export const ADVERTISE_FILE = config.storage.advertiseFile;

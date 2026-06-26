@@ -3,6 +3,7 @@ import { constants } from "fs";
 import { basename, join, normalize, parse } from "path";
 import { randomBytes } from "crypto";
 import { embedImageMetadataBestEffort } from "./imageMetadataStore.js";
+import { queueGeneratedDriveUpload } from "./driveUpload.js";
 
 const PNG_SIGNATURE = "89504e470d0a1a0a";
 
@@ -67,6 +68,7 @@ async function writeCanvasPng(ctx, filename, buffer, meta) {
   });
   await writeFile(full, embedded.buffer);
   await writeFile(`${full}.json`, JSON.stringify(meta)).catch(() => {});
+  queueGeneratedDriveUpload(ctx, filename);
 }
 
 async function readGeneratedMetadata(ctx, filename) {

@@ -131,7 +131,7 @@ Do not treat any community number as a guarantee. OAuth generation can be limite
 Current versions store generated images in your user data folder:
 
 ```text
-macOS / Linux: ~/.ima2/generated
+Default: <packageRoot>/generated
 Windows: %USERPROFILE%\.ima2\generated
 ```
 

@@ -24,11 +24,12 @@ describe("edit mask API contract", () => {
     assert.doesNotMatch(route, /rawMask[\s\S]{0,120}logEvent/);
   });
 
-  it("keeps unsupported mask provider behavior explicit", () => {
+  it("passes validated masks to the OAuth provider path", () => {
     const oauth = readSource("lib/oauthProxy.ts");
     assert.match(oauth, /options\.mask/);
-    assert.match(oauth, /EDIT_MASK_NOT_SUPPORTED/);
-    assert.match(oauth, /mask_unsupported/);
+    assert.match(oauth, /input_image_mask/);
+    assert.match(oauth, /maskPresent: Boolean\(maskB64\)/);
+    assert.doesNotMatch(oauth, /EDIT_MASK_NOT_SUPPORTED/);
   });
 
   it("parses PNG IHDR metadata through a helper", () => {

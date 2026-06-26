@@ -74,21 +74,19 @@ describe("Card News smoke flow contract", () => {
     assert.match(inspector, /retryCard\(card\.id\)/);
   });
 
-  it("keeps gallery set reopen wired to Card News mode", () => {
-    const gallery = readSource("ui/src/components/GalleryModal.tsx");
+  it("keeps Card News set rows out of the main gallery after mode cleanup", () => {
+    const gallery = readSource("ui/src/components/gallery/GalleryModal.tsx");
 
-    assert.match(gallery, /handleOpenCardNewsSet/);
-    assert.match(gallery, /loadSet\(item\.setId\)/);
-    assert.match(gallery, /setUIMode\("card-news"\)/);
-    assert.match(gallery, /item\.kind === "card-news-set"/);
-    assert.match(gallery, /gallery-card-news-set/);
+    assert.match(gallery, /item\.kind !== "card-news-set" && item\.kind !== "card-news-card"/);
+    assert.doesNotMatch(gallery, /setUIMode\("card-news"\)/);
+    assert.doesNotMatch(gallery, /gallery-card-news-set/);
   });
 
   it("keeps manual smoke QA covered by tracked source contracts", () => {
     const en = readSource("ui/src/i18n/en.json");
     const composer = readSource("ui/src/components/card-news/CardNewsComposer.tsx");
     const stage = readSource("ui/src/components/card-news/CardStage.tsx");
-    const gallery = readSource("ui/src/components/GalleryModal.tsx");
+    const gallery = readSource("ui/src/components/gallery/GalleryModal.tsx");
     const smokeTest = readSource("tests/card-news-smoke.test.js");
 
     for (const phrase of [
@@ -107,8 +105,8 @@ describe("Card News smoke flow contract", () => {
     assert.match(stage, /t\("cardNews\.retryCard"\)/);
     assert.match(stage, /t\("cardNews\.actions\.openImage"\)/);
     assert.match(stage, /t\("cardNews\.actions\.downloadCard"\)/);
-    assert.match(gallery, /handleOpenCardNewsSet/);
-    assert.match(gallery, /setUIMode\("card-news"\)/);
+    assert.match(gallery, /item\.kind !== "card-news-set" && item\.kind !== "card-news-card"/);
+    assert.doesNotMatch(gallery, /setUIMode\("card-news"\)/);
 
     assert.doesNotMatch(smokeTest, new RegExp("await\\s+" + "generateCardNews\\("));
     assert.doesNotMatch(smokeTest, new RegExp("await\\s+" + "startCardNewsJob\\("));

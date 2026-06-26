@@ -1,35 +1,25 @@
 import { lazy, Suspense, useEffect } from "react";
-import { Sidebar } from "./components/Sidebar";
-import { Canvas } from "./components/Canvas";
-import { RightPanel } from "./components/RightPanel";
-import { HistoryStrip } from "./components/HistoryStrip";
-import { Toast } from "./components/Toast";
-import { ErrorCard } from "./components/ErrorCard";
-import { GalleryModal } from "./components/GalleryModal";
-import { CustomSizeConfirmModal } from "./components/CustomSizeConfirmModal";
-import { MetadataRestoreDialog } from "./components/MetadataRestoreDialog";
-import { TrashUndoToast } from "./components/TrashUndoToast";
-import { MobileSettingsToggle } from "./components/MobileSettingsToggle";
-import { MobileAppBar } from "./components/MobileAppBar";
-import { MobileComposeSheet } from "./components/MobileComposeSheet";
-import { useAppStore, flushGraphSaveBeacon } from "./store/useAppStore";
-import { ENABLE_CARD_NEWS_MODE, ENABLE_NODE_MODE } from "./lib/devMode";
+import { Canvas } from "./components/result/Canvas";
+import { RightPanel } from "./components/layout/RightPanel";
+import { HistoryStrip } from "./components/gallery/HistoryStrip";
+import { Toast } from "./components/feedback/Toast";
+import { ErrorCard } from "./components/feedback/ErrorCard";
+import { GalleryModal } from "./components/gallery/GalleryModal";
+import { CustomSizeConfirmModal } from "./components/feedback/CustomSizeConfirmModal";
+import { MetadataRestoreDialog } from "./components/feedback/MetadataRestoreDialog";
+import { FailureLogModal } from "./components/gallery/FailureLogModal";
+import { TrashUndoToast } from "./components/feedback/TrashUndoToast";
+import { MobileSettingsToggle } from "./components/settings/MobileSettingsToggle";
+import { MobileAppBar } from "./components/layout/MobileAppBar";
+import { MobileComposeSheet } from "./components/layout/MobileComposeSheet";
+import { useAppStore } from "./store/useAppStore";
 import { useGalleryViewerNavigation } from "./hooks/useGalleryViewerNavigation";
 import { useBrowserAttentionBadge } from "./hooks/useBrowserAttentionBadge";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { useVisualViewportInset } from "./hooks/useVisualViewportInset";
 
-const LazyNodeCanvas = lazy(() =>
-  import("./components/NodeCanvas").then((module) => ({ default: module.NodeCanvas })),
-);
 const LazySettingsWorkspace = lazy(() =>
-  import("./components/SettingsWorkspace").then((module) => ({ default: module.SettingsWorkspace })),
-);
-const LazyCardNewsWorkspace = lazy(() =>
-  import("./components/card-news/CardNewsWorkspace").then((module) => ({ default: module.CardNewsWorkspace })),
-);
-const LazyPromptLibraryPanel = lazy(() =>
-  import("./components/PromptLibraryPanel").then((module) => ({ default: module.PromptLibraryPanel })),
+  import("./components/settings/SettingsWorkspace").then((module) => ({ default: module.SettingsWorkspace })),
 );
 
 function WorkspaceFallback() {
@@ -40,7 +30,6 @@ export default function App() {
   useGalleryViewerNavigation();
   useVisualViewportInset();
   const hydrateHistory = useAppStore((s) => s.hydrateHistory);
-  const loadSessions = useAppStore((s) => s.loadSessions);
   const startInFlightPolling = useAppStore((s) => s.startInFlightPolling);
   const reconcileInflight = useAppStore((s) => s.reconcileInflight);
   const syncFromStorage = useAppStore((s) => s.syncFromStorage);
@@ -53,26 +42,24 @@ export default function App() {
   const syncThemeFromStorage = useAppStore((s) => s.syncThemeFromStorage);
   const syncThemeFamilyFromStorage = useAppStore((s) => s.syncThemeFamilyFromStorage);
   const refreshResolvedTheme = useAppStore((s) => s.refreshResolvedTheme);
-  const uiModeRaw = useAppStore((s) => s.uiMode);
-  const uiMode =
-    uiModeRaw === "card-news" && ENABLE_CARD_NEWS_MODE ? "card-news" :
-      uiModeRaw === "node" && ENABLE_NODE_MODE ? "node" :
-        "classic";
   const isMobile = useIsMobile();
 
   useBrowserAttentionBadge(unseenGeneratedCount);
 
   useEffect(() => {
     hydrateHistory();
-    loadSessions();
     reconcileInflight();
     startInFlightPolling();
-  }, [hydrateHistory, loadSessions, reconcileInflight, startInFlightPolling]);
+  }, [hydrateHistory, reconcileInflight, startInFlightPolling]);
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (!e.key) return;
-      if (e.key === "ima2.inFlight" || e.key === "ima2.selectedFilename") {
+      if (
+        e.key === "ima2.inFlight" ||
+        e.key === "ima2.failureLogs" ||
+        e.key === "ima2.selectedFilename"
+      ) {
         syncFromStorage();
       } else if (e.key === "ima2:theme") {
         syncThemeFromStorage();
@@ -99,47 +86,22 @@ export default function App() {
     return () => media.removeEventListener("change", refreshResolvedTheme);
   }, [refreshResolvedTheme, theme]);
 
-  useEffect(() => {
-    const onHide = () => {
-      flushGraphSaveBeacon(useAppStore.getState);
-    };
-    window.addEventListener("beforeunload", onHide);
-    return () => {
-      window.removeEventListener("beforeunload", onHide);
-    };
-  }, []);
-
   return (
     <>
       <div
-        className={`app${settingsOpen ? " app--settings-open" : ""}${
-          historyStripLayout === "horizontal" ? " app--history-horizontal" : ""
-        }${
-          historyStripLayout === "sidebar" ? " app--history-sidebar" : ""
-        }`}
+        className={`app${settingsOpen ? " app--settings-open" : ""}`}
         data-theme-mode={resolvedTheme}
         data-theme-family={themeFamily}
         data-history-strip-layout={historyStripLayout}
         data-mobile={isMobile ? "1" : undefined}
-        data-ui-mode={uiMode}
+        data-ui-mode="classic"
       >
-        <Sidebar />
         <MobileAppBar />
         <HistoryStrip />
         <Suspense fallback={<WorkspaceFallback />}>
-          {settingsOpen ? (
-            <LazySettingsWorkspace />
-          ) : uiMode === "classic" ? (
-            <Canvas />
-          ) : uiMode === "node" ? (
-            <LazyNodeCanvas />
-          ) : uiMode === "card-news" ? (
-            <LazyCardNewsWorkspace />
-          ) : (
-            <Canvas />
-          )}
+          {settingsOpen ? <LazySettingsWorkspace /> : <Canvas />}
         </Suspense>
-        {uiMode === "card-news" ? null : <RightPanel />}
+        <RightPanel />
       </div>
       <CustomSizeConfirmModal />
       <TrashUndoToast />
@@ -147,13 +109,9 @@ export default function App() {
       <ErrorCard />
       <GalleryModal />
       <MetadataRestoreDialog />
+      <FailureLogModal />
       <MobileComposeSheet />
       <MobileSettingsToggle />
-      {uiMode === "card-news" ? (
-        <Suspense fallback={null}>
-          <LazyPromptLibraryPanel />
-        </Suspense>
-      ) : null}
     </>
   );
 }

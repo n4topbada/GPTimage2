@@ -31,7 +31,7 @@ export async function buildStorageDoctorLines(ctx) {
     lines.push("    Current gallery storage looks available.");
   }
   lines.push(`    See: ${status.recoveryDocsPath}`);
-  lines.push("    macOS/Linux: cp -n \"/old/ima2-gen/generated/\"* ~/.ima2/generated/");
+  lines.push("    macOS/Linux: cp -n \"/old/ima2-gen/generated/\"* ./generated/");
   lines.push("    Windows: Copy old generated files into %USERPROFILE%\\.ima2\\generated");
 
   return lines;

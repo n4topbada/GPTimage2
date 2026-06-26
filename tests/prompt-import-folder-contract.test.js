@@ -6,7 +6,7 @@ import {
   fetchGitHubFolderFiles,
   fetchSelectedGitHubFolderFiles,
   normalizeGitHubFolderSource,
-} from "../lib/promptImport/githubFolder.ts";
+} from "../lib/promptImport/githubFolder";
 
 const root = process.cwd();
 const originalFetch = globalThis.fetch;

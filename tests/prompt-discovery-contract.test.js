@@ -4,14 +4,14 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { searchGitHubDiscovery } from "../lib/promptImport/githubDiscovery.ts";
+import { searchGitHubDiscovery } from "../lib/promptImport/githubDiscovery";
 import {
   listDiscoveryCandidates,
   listReviewedDiscoverySources,
   reviewDiscoveryCandidate,
   upsertDiscoveryCandidates,
-} from "../lib/promptImport/discoveryRegistry.ts";
-import { getPromptImportSources } from "../lib/promptImport/promptIndex.ts";
+} from "../lib/promptImport/discoveryRegistry";
+import { getPromptImportSources } from "../lib/promptImport/promptIndex";
 
 const root = process.cwd();
 const originalFetch = globalThis.fetch;

@@ -22,7 +22,7 @@ export function formatSizeAlias(size: string | null | undefined): string | null 
 }
 
 export function getCanvasDisplaySrc(image: GenerateItem): string {
-  const src = image.url ?? image.image;
+  const src = image.image?.startsWith("data:") ? image.image : (image.url ?? image.image);
   if (!image.canvasVersion || !image.canvasMergedAt || src.startsWith("data:")) return src;
   const separator = src.includes("?") ? "&" : "?";
   return `${src}${separator}canvasMergedAt=${image.canvasMergedAt}`;

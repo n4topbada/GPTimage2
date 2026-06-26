@@ -11,7 +11,7 @@ function readSource(path) {
 
 describe("gallery navigation UX contract", () => {
   it("navigates focused generated images with arrow keys only on the viewer itself", () => {
-    const canvas = readSource("ui/src/components/Canvas.tsx");
+    const canvas = readSource("ui/src/components/result/Canvas.tsx");
     const domEvents = readSource("ui/src/lib/domEvents.ts");
     const ko = readSource("ui/src/i18n/ko.json");
     const en = readSource("ui/src/i18n/en.json");
@@ -42,8 +42,8 @@ describe("gallery navigation UX contract", () => {
   });
 
   it("restores Gallery position by selected item with scrollTop fallback", () => {
-    const gallery = readSource("ui/src/components/GalleryModal.tsx");
-    const imageTile = readSource("ui/src/components/GalleryImageTile.tsx");
+    const gallery = readSource("ui/src/components/gallery/GalleryModal.tsx");
+    const imageTile = readSource("ui/src/components/gallery/GalleryImageTile.tsx");
     const navigation = readSource("ui/src/lib/galleryNavigation.ts");
     const lineCount = gallery.split("\n").length;
 
@@ -68,24 +68,25 @@ describe("gallery navigation UX contract", () => {
   });
 
   it("keeps canvas versions internal instead of showing them in gallery surfaces", () => {
-    const gallery = readSource("ui/src/components/GalleryModal.tsx");
-    const historyStrip = readSource("ui/src/components/HistoryStrip.tsx");
+    const gallery = readSource("ui/src/components/gallery/GalleryModal.tsx");
+    const historyStrip = readSource("ui/src/components/gallery/HistoryStrip.tsx");
 
-    assert.match(gallery, /function isGalleryVisibleItem\(item: Pick<GenerateItem, "canvasVersion">\): boolean/);
-    assert.match(gallery, /return !item\.canvasVersion/);
+    assert.match(gallery, /function isGalleryVisibleItem\(item: \{ canvasVersion\?: boolean; kind\?: string \| null \}\): boolean/);
+    assert.match(gallery, /return !item\.canvasVersion && item\.kind !== "card-news-set" && item\.kind !== "card-news-card"/);
     assert.match(gallery, /const galleryHistory = useMemo\(\(\) => history\.filter\(isGalleryVisibleItem\), \[history\]\)/);
     assert.match(gallery, /galleryHistory\.filter/);
     assert.match(gallery, /s\.items\.filter\(isGalleryVisibleItem\)\.map\(toItem\)/);
     assert.match(gallery, /page\.loose\.filter\(isGalleryVisibleItem\)\.map\(toItem\)/);
     assert.match(gallery, /galleryHistory\.length === 0/);
     assert.match(historyStrip, /const visibleHistory = useMemo\(/);
-    assert.match(historyStrip, /history\.filter\(\(item\) => !item\.canvasVersion\)/);
+    assert.match(historyStrip, /!item\.canvasVersion/);
+    assert.match(historyStrip, /inFlightRequestIds/);
     assert.match(historyStrip, /visibleHistory\.map/);
   });
 
   it("maps vertical wheel input to horizontal thumbnail scrolling safely", () => {
     const wheel = readSource("ui/src/lib/horizontalWheel.ts");
-    const historyStrip = readSource("ui/src/components/HistoryStrip.tsx");
+    const historyStrip = readSource("ui/src/components/gallery/HistoryStrip.tsx");
     const cardDeck = readSource("ui/src/components/card-news/CardDeckRail.tsx");
     const css = readSource("ui/src/index.css");
 
@@ -101,20 +102,12 @@ describe("gallery navigation UX contract", () => {
     assert.match(css, /\.card-news-deck[\s\S]*overscroll-behavior-inline: contain/);
   });
 
-  it("renders the compact gallery strip with rail and horizontal layout options", () => {
+  it("renders the unified gallery and queue rail with prompt controls in the right panel", () => {
     const app = readSource("ui/src/App.tsx");
-    const sidebar = readSource("ui/src/components/Sidebar.tsx");
-    const historyStrip = readSource("ui/src/components/HistoryStrip.tsx");
-    const settings = readSource("ui/src/components/SettingsWorkspace.tsx");
-    const toggle = readSource("ui/src/components/HistoryStripLayoutToggle.tsx");
-    const store = readSource("ui/src/store/useAppStore.ts");
-    const types = readSource("ui/src/types.ts");
-    const ko = readSource("ui/src/i18n/ko.json");
-    const en = readSource("ui/src/i18n/en.json");
+    const rightPanel = readSource("ui/src/components/layout/RightPanel.tsx");
+    const historyStrip = readSource("ui/src/components/gallery/HistoryStrip.tsx");
     const css = readSource("ui/src/index.css");
     const appRule = /\.app\s*\{[^}]*\}/s.exec(css)?.[0] ?? "";
-    const horizontalAppRule = /\.app--history-horizontal\s*\{[^}]*\}/s.exec(css)?.[0] ?? "";
-    const sidebarAppRule = /\.app--history-sidebar\s*\{[^}]*\}/s.exec(css)?.[0] ?? "";
     const rightPanelRule =
       [...css.matchAll(/^\.right-panel\s*\{[^}]*\}/gm)].find((match) =>
         match[0].includes("height: 100dvh"),
@@ -123,64 +116,56 @@ describe("gallery navigation UX contract", () => {
       [...css.matchAll(/\.history-strip\s*\{[^}]*\}/gs)].find((match) =>
         match[0].includes("flex-direction: column"),
       )?.[0] ?? "";
-    const horizontalRule = /\.history-strip--horizontal\s*\{[^}]*\}/s.exec(css)?.[0] ?? "";
-    const sidebarRule = /\.history-strip--sidebar\s*\{[^}]*\}/s.exec(css)?.[0] ?? "";
     const addRule = /\.history-thumb--add\s*\{[^}]*\}/s.exec(css)?.[0] ?? "";
+    const queueRule = /\.history-thumb--queue\s*\{[^}]*\}/s.exec(css)?.[0] ?? "";
+    const queueActiveRule = /\.history-thumb--queue-streaming,[\s\S]*?\.history-thumb--queue-decoding\s*\{[^}]*\}/s.exec(css)?.[0] ?? "";
+    const queueErrorRule = /\.history-thumb--queue-error\s*\{[^}]*\}/s.exec(css)?.[0] ?? "";
     const responsiveBlock = /@media \(max-width:\s*800px\)\s*\{[\s\S]*?\.canvas\s*\{/s.exec(css)?.[0] ?? "";
 
-    assert.match(app, /import \{ HistoryStrip \} from "\.\/components\/HistoryStrip"/);
-    assert.match(app, /historyStripLayout/);
-    assert.match(app, /app--history-horizontal/);
-    assert.match(app, /app--history-sidebar/);
+    assert.match(app, /import \{ HistoryStrip \} from "\.\/components\/gallery\/HistoryStrip"/);
     assert.match(app, /data-history-strip-layout=\{historyStripLayout\}/);
-    assert.match(app, /import \{ MobileAppBar \} from "\.\/components\/MobileAppBar"/);
-    assert.match(app, /<Sidebar \/>\s*<MobileAppBar \/>\s*<HistoryStrip \/>/);
-    assert.doesNotMatch(sidebar, /HistoryStrip/);
+    assert.match(app, /import \{ MobileAppBar \} from "\.\/components\/layout\/MobileAppBar"/);
+    assert.doesNotMatch(app, /import \{ Sidebar \}/);
+    assert.match(app, /<MobileAppBar \/>\s*<HistoryStrip \/>/);
 
-    assert.match(appRule, /--gallery-rail-w:\s*clamp\(61px,\s*6vw,\s*95px\)/);
-    assert.match(appRule, /grid-template-columns:\s*260px var\(--gallery-rail-w\) minmax\(0,\s*1fr\) auto/);
-    assert.match(horizontalAppRule, /grid-template-columns:\s*260px minmax\(0,\s*1fr\) auto/);
-    assert.match(horizontalAppRule, /grid-template-rows:\s*var\(--history-strip-h\) minmax\(0,\s*1fr\)/);
-    assert.match(sidebarAppRule, /grid-template-columns:\s*260px minmax\(0,\s*1fr\) auto/);
-    assert.match(sidebarAppRule, /grid-template-rows:\s*minmax\(0,\s*1fr\) var\(--history-strip-h\)/);
-    assert.match(rightPanelRule, /width:\s*266px/);
+    assert.match(rightPanel, /PromptComposer/);
+    assert.match(readSource("ui/src/components/prompt/PromptComposer.tsx"), /GenerateButton/);
+    assert.match(rightPanel, /ImageModelSelect/);
+    assert.match(rightPanel, /SettingsButton/);
+    assert.match(rightPanel, /right-panel-workspace/);
+
+    assert.match(appRule, /--gallery-rail-w:\s*clamp\(72px,\s*6vw,\s*104px\)/);
+    assert.match(appRule, /grid-template-columns:\s*var\(--gallery-rail-w\) minmax\(0,\s*1fr\) auto/);
+    assert.match(rightPanelRule, /width:\s*var\(--right-panel-w\)/);
     assert.match(historyRule, /flex-direction:\s*column/);
     assert.match(historyRule, /overflow-y:\s*auto/);
     assert.match(historyRule, /overflow-x:\s*hidden/);
-    assert.match(horizontalRule, /flex-direction:\s*row/);
-    assert.match(horizontalRule, /overflow-x:\s*auto/);
-    assert.match(horizontalRule, /border-bottom:\s*1px solid var\(--border\)/);
-    assert.match(sidebarRule, /flex-direction:\s*row/);
-    assert.match(sidebarRule, /border-top:\s*1px solid var\(--border\)/);
-    assert.match(sidebarRule, /border-right:\s*1px solid var\(--border\)/);
     assert.match(addRule, /top:\s*0/);
+    assert.match(queueRule, /position:\s*relative/);
+    assert.match(queueRule, /var\(--text-dim\)/);
+    assert.match(queueActiveRule, /var\(--blue\)/);
+    assert.match(queueActiveRule, /queue-active-pulse/);
+    assert.match(queueErrorRule, /var\(--red\)/);
+    assert.doesNotMatch(css, /progress-bar/);
+    assert.doesNotMatch(readSource("ui/src/components/result/Canvas.tsx"), /activeGenerations/);
+    assert.doesNotMatch(readSource("ui/src/components/canvas-mode/CanvasModeWorkspace.tsx"), /progress-bar/);
 
     assert.match(responsiveBlock, /grid-template-rows:\s*auto auto 1fr/);
-    assert.match(responsiveBlock, /\.app--history-horizontal \.history-strip/);
-    assert.match(responsiveBlock, /\.app--history-sidebar \.history-strip/);
     assert.match(responsiveBlock, /\.history-strip\s*\{[\s\S]*flex-direction:\s*row/);
     assert.match(responsiveBlock, /\.history-strip\s*\{[\s\S]*overflow-x:\s*auto/);
     assert.match(responsiveBlock, /\.history-thumb--add\s*\{[\s\S]*left:\s*0/);
 
-    assert.match(types, /export type HistoryStripLayout = "rail" \| "horizontal" \| "sidebar"/);
-    assert.match(store, /historyStripLayout:\s*HistoryStripLayout/);
-    assert.match(store, /loadHistoryStripLayout/);
-    assert.match(store, /ima2\.historyStripLayout/);
-    assert.match(store, /setHistoryStripLayout/);
-    assert.match(historyStrip, /useRef<Record<string,\s*HTMLImageElement \| null>>/);
-    assert.match(historyStrip, /historyStripLayout/);
-    assert.match(historyStrip, /history-strip--horizontal/);
-    assert.match(historyStrip, /history-strip--sidebar/);
-    assert.match(historyStrip, /data-layout=\{historyStripLayout\}/);
+    assert.match(historyStrip, /const \[failedImageKeys, setFailedImageKeys\] = useState<Set<string>>/);
+    assert.match(historyStrip, /const inFlight = useAppStore\(\(s\) => s\.inFlight\)/);
+    assert.match(historyStrip, /const failureLogs = useAppStore\(\(s\) => s\.failureLogs\)/);
+    assert.match(historyStrip, /openFailureLog/);
+    assert.match(historyStrip, /history-thumb--logs/);
+    assert.match(historyStrip, /historyByRequestId/);
+    assert.match(historyStrip, /history-thumb--queue/);
+    assert.match(historyStrip, /history-thumb__skeleton/);
     assert.match(historyStrip, /function getHistoryItemKey\(item: GenerateItem\): string/);
-    assert.match(historyStrip, /scrollIntoView\(\{ block: "nearest", inline: "nearest" \}\)/);
-    assert.match(historyStrip, /ref=\{\(node\) => \{/);
-    assert.match(settings, /HistoryStripLayoutToggle/);
-    assert.match(toggle, /history-layout-toggle/);
-    assert.match(toggle, /aria-pressed=\{layout === option\}/);
-    assert.match(toggle, /\["rail", "horizontal", "sidebar"\]/);
-    assert.match(en, /historyStripLayoutTitle/);
-    assert.match(ko, /historyStripLayoutTitle/);
+    assert.match(historyStrip, /onError=\{\(\) =>/);
+    assert.match(historyStrip, /onClick=\{\(\) => selectHistory\(item\)\}/);
   });
 
   it("does not introduce backend coupling for navigation UX", () => {

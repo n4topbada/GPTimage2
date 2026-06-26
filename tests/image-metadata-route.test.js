@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import express from "express";
 import { createServer } from "node:http";
 import sharp from "sharp";
-import { registerMetadataRoutes } from "../routes/metadata.ts";
-import { embedImageMetadata } from "../lib/imageMetadataStore.ts";
+import { registerMetadataRoutes } from "../routes/metadata";
+import { embedImageMetadata } from "../lib/imageMetadataStore";
 
 async function listen(server) {
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));

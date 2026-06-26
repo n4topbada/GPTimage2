@@ -1,6 +1,3 @@
-// 0.09.10 — sanity tests for prompt fidelity text builder.
-// We require that "direct" mode instructs the agent NOT to modify,
-// and that "auto" and "direct" produce different text for the same input.
 import { strict as assert } from "node:assert";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -13,41 +10,34 @@ import {
   PROMPT_FIDELITY_SUFFIX,
   buildEditTextPrompt,
   buildUserTextPrompt,
-} from "../lib/oauthProxy.ts";
+} from "../lib/oauthProxy";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const serverPath = join(__dirname, "..", "server.ts");
 const historyListPath = join(__dirname, "..", "lib", "historyList.ts");
-const nodeRoutePath = join(__dirname, "..", "routes", "nodes.ts");
 const apiPath = join(__dirname, "..", "ui", "src", "lib", "api.ts");
-const nodeApiPath = join(__dirname, "..", "ui", "src", "lib", "nodeApi.ts");
 
 const src = await readFile(serverPath, "utf8");
 const historySrc = await readFile(historyListPath, "utf8");
-const nodeSrc = await readFile(nodeRoutePath, "utf8");
 const apiSrc = await readFile(apiPath, "utf8");
-const nodeApiSrc = await readFile(nodeApiPath, "utf8");
 
-// Ensure both suffix constants and the builder exist
 assert.ok(src.includes("buildApp"), "buildApp export missing after server split");
 assert.ok(historySrc.includes("revisedPrompt"), "history revisedPrompt field missing");
 assert.ok(historySrc.includes("promptMode"), "history promptMode field missing");
 assert.ok(historySrc.includes("userPrompt"), "history userPrompt field missing");
 assert.ok(historySrc.includes("refsCount"), "history refsCount field missing");
 assert.ok(historySrc.includes("requestId"), "history requestId field missing");
-assert.ok(nodeSrc.includes("normalizedPromptMode"), "node prompt mode propagation missing");
-assert.ok(nodeSrc.includes("userPrompt"), "node userPrompt meta field missing");
-assert.ok(nodeSrc.includes("refsCount"), "node refsCount meta field missing");
-assert.ok(nodeSrc.includes("partialImages: streamResponse ? 2 : 0"), "node partial_images opt-in missing");
-assert.ok(apiSrc.includes("postNodeGenerateStream"), "node SSE client missing");
-assert.ok(nodeApiSrc.includes('Accept: "text/event-stream"'), "node SSE Accept header missing");
+assert.ok(apiSrc.includes("postGenerate"), "classic generate client missing");
+assert.ok(apiSrc.includes("postEdit"), "classic edit client missing");
 
 assert.equal(PROMPT_FIDELITY_SUFFIX, AUTO_PROMPT_FIDELITY_SUFFIX);
-assert.ok(AUTO_PROMPT_FIDELITY_SUFFIX.includes("treat the user's prompt as the source of truth"));
-assert.ok(AUTO_PROMPT_FIDELITY_SUFFIX.includes("pass it through unchanged"));
+assert.ok(AUTO_PROMPT_FIDELITY_SUFFIX.includes("Treat the user's prompt as the source of truth"));
+assert.ok(AUTO_PROMPT_FIDELITY_SUFFIX.includes("pass it through as the image_generation prompt argument"));
 assert.ok(!AUTO_PROMPT_FIDELITY_SUFFIX.includes("only append English clarifiers at the end when helpful"));
 assert.ok(!DIRECT_PROMPT_FIDELITY_SUFFIX.includes("append English clarifiers"));
 assert.ok(DIRECT_PROMPT_FIDELITY_SUFFIX.includes("Do not translate, summarize, restyle, add clarifiers"));
+assert.ok(!DIRECT_PROMPT_FIDELITY_SUFFIX.includes("Required production framing"));
+assert.ok(!DIRECT_PROMPT_FIDELITY_SUFFIX.includes("professional fashion editorial / catalog photoshoot"));
 
 const generateDirect = buildUserTextPrompt("고양이 수채화", "direct");
 const generateAuto = buildUserTextPrompt("고양이 수채화", "auto");
@@ -59,22 +49,22 @@ assert.ok(generateAuto.includes("If the user's prompt is already visually suffic
 assert.ok(generateAuto.includes("pass the user's prompt through"));
 assert.notEqual(generateDirect, generateAuto);
 
-const editDirect = buildEditTextPrompt("배경만 바꿔", "direct");
-const editAuto = buildEditTextPrompt("배경만 바꿔", "auto");
+const editDirect = buildEditTextPrompt("change background", "direct");
+const editAuto = buildEditTextPrompt("change background", "auto");
 assert.ok(editDirect.includes("Edit this image with this exact prompt, no modifications"));
 assert.ok(!editDirect.includes("append English clarifiers"));
-assert.ok(editAuto.includes("Edit this image: 배경만 바꿔"));
+assert.ok(editAuto.includes("Edit this image: change background"));
 assert.notEqual(editDirect, editAuto);
 
 for (const prompt of [GENERATE_DEVELOPER_PROMPT, EDIT_DEVELOPER_PROMPT]) {
   assert.ok(prompt.includes("absolute quality"), "developer prompt should use neutral quality language");
   assert.ok(!prompt.includes("8k UHD"), "developer prompt should not force 8k/photo boilerplate");
   assert.ok(!prompt.includes("default to photorealistic"), "developer prompt should not force photorealism");
-  assert.ok(prompt.includes("at least 1 web_search call"), "real-person search should start at one call");
-  assert.ok(prompt.includes("visually sufficient"), "developer prompt should pass through sufficient prompts");
-  assert.ok(prompt.includes("do not search"), "developer prompt should avoid search when prompt is sufficient");
+  assert.ok(prompt.includes("one concise web_search"), "real-person search should start at one concise call");
   assert.ok(!prompt.includes("AT LEAST 3"), "real-person search should not force 3+ calls");
   assert.ok(!prompt.includes("4-5"), "real-person search should not prefer 4-5 calls");
 }
+assert.ok(GENERATE_DEVELOPER_PROMPT.includes("when it is visually sufficient"), "generate prompt should pass through sufficient prompts");
+assert.ok(EDIT_DEVELOPER_PROMPT.includes("Apply the user's requested edit precisely"), "edit prompt should prioritize the requested edit");
 
 console.log("prompt-fidelity: ok");

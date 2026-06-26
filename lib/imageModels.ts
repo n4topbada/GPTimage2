@@ -1,4 +1,4 @@
-const FALLBACK_IMAGE_MODEL = "gpt-5.4-mini";
+const FALLBACK_IMAGE_MODEL = "gpt-5.5";
 const VALID_IMAGE_MODELS = new Set(["gpt-5.5", "gpt-5.4", "gpt-5.4-mini"]);
 const UNSUPPORTED_IMAGE_MODELS = new Set(["gpt-5.3-codex-spark"]);
 const FALLBACK_REASONING_EFFORT = "none";

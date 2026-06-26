@@ -88,7 +88,7 @@ export function CardNewsComposer() {
         {outputSizePreset === "custom" ? (
           <div className="card-news-custom-size">
             <input
-              className="custom-size-input"
+              className="card-news-size-input"
               type="text"
               inputMode="numeric"
               value={customW}
@@ -97,7 +97,7 @@ export function CardNewsComposer() {
             />
             <span>×</span>
             <input
-              className="custom-size-input"
+              className="card-news-size-input"
               type="text"
               inputMode="numeric"
               value={customH}

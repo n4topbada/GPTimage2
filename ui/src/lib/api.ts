@@ -10,14 +10,6 @@ import type {
 } from "../types";
 import type { SavedCanvasAnnotations } from "../types/canvas";
 
-export {
-  postNodeGenerate,
-  postNodeGenerateStream,
-  type NodeErrorResponse,
-  type NodeGenerateRequest,
-  type NodeGenerateResponse,
-} from "./nodeApi";
-
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
   const data = (await res.json().catch(() => ({}))) as T & {
@@ -36,10 +28,14 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
       status?: number;
       code?: string;
       currentVersion?: number;
+      details?: Record<string, unknown>;
     };
     err.status = res.status;
     if (typeof raw !== "string" && raw?.code) err.code = raw.code;
     else if (topCode) err.code = topCode;
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      err.details = data as Record<string, unknown>;
+    }
     if (typeof data.currentVersion === "number") {
       err.currentVersion = data.currentVersion;
     }
@@ -73,6 +69,7 @@ export function getInflight(params?: {
     phaseAt?: number;
     httpStatus?: number;
     errorCode?: string;
+    errorMessage?: string;
     meta?: Record<string, unknown>;
   }>;
 }> {
@@ -88,6 +85,10 @@ export async function cancelInflight(requestId: string): Promise<void> {
   await fetch(`/api/inflight/${encodeURIComponent(requestId)}`, {
     method: "DELETE",
   }).catch(() => {});
+}
+
+export async function clearInflightTerminalJobs(): Promise<void> {
+  await fetch("/api/inflight-terminal", { method: "DELETE" }).catch(() => {});
 }
 
 export function getOAuthStatus(): Promise<OAuthStatus> {
@@ -175,13 +176,21 @@ export async function postMultimodeGenerateStream(
           handlers.onPhase?.(parsed.data as { phase?: string; requestId?: string | null; sequenceId?: string | null; maxImages?: number });
         } else if (parsed.event === "done") {
           finalPayload = parsed.data as MultimodeGenerateResponse;
-        } else if (parsed.event === "error") {
-          const err = parsed.data as { error?: string; code?: string; status?: number };
-          const e = new Error(err.error ?? "Multimode generation failed") as Error & { code?: string; status?: number };
-          e.code = err.code;
-          e.status = err.status;
-          throw e;
-        }
+    } else if (parsed.event === "error") {
+      const err = parsed.data as { error?: string; code?: string; status?: number };
+      const e = new Error(err.error ?? "Multimode generation failed") as Error & {
+        code?: string;
+        status?: number;
+        details?: Record<string, unknown>;
+      };
+      e.code = err.code;
+      e.status = err.status;
+      e.details =
+        err && typeof err === "object" && !Array.isArray(err)
+          ? (err as Record<string, unknown>)
+          : undefined;
+      throw e;
+    }
       }
       boundary = buffer.indexOf("\n\n");
     }
@@ -390,20 +399,6 @@ export function restoreHistoryItem(filename: string, trashId: string): Promise<{
   });
 }
 
-export type ComfyExportResponse = {
-  ok: true;
-  sourceFilename: string;
-  uploadedFilename: string;
-};
-
-export function exportImageToComfy(input: { filename: string }): Promise<ComfyExportResponse> {
-  return jsonFetch<ComfyExportResponse>("/api/comfy/export-image", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ filename: input.filename }),
-  });
-}
-
 export type ImageMetadataReadResponse = {
   ok: boolean;
   metadata: EmbeddedGenerationMetadata | null;
@@ -483,89 +478,6 @@ export function updateCanvasVersion(
 }
 
 // ── Sessions (0.06) ──
-export type SessionSummary = {
-  id: string;
-  title: string;
-  createdAt: number;
-  updatedAt: number;
-  graphVersion: number;
-  nodeCount: number;
-};
-
-export type SessionGraphNode = {
-  id: string;
-  x: number;
-  y: number;
-  data: Record<string, unknown>;
-};
-export type SessionGraphEdge = {
-  id: string;
-  source: string;
-  target: string;
-  data: Record<string, unknown>;
-};
-export type SessionFull = {
-  id: string;
-  title: string;
-  createdAt: number;
-  updatedAt: number;
-  graphVersion: number;
-  nodes: SessionGraphNode[];
-  edges: SessionGraphEdge[];
-};
-
-export type GraphSaveMeta = {
-  saveId?: string;
-  saveReason?: string;
-  tabId?: string;
-};
-
-export function listSessions(): Promise<{ sessions: SessionSummary[] }> {
-  return jsonFetch("/api/sessions");
-}
-export function createSession(title: string): Promise<{ session: SessionSummary }> {
-  return jsonFetch("/api/sessions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title }),
-  });
-}
-export function getSession(id: string): Promise<{ session: SessionFull }> {
-  return jsonFetch(`/api/sessions/${encodeURIComponent(id)}`);
-}
-export function renameSession(id: string, title: string): Promise<{ ok: boolean }> {
-  return jsonFetch(`/api/sessions/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title }),
-  });
-}
-export function deleteSession(id: string): Promise<{ ok: boolean }> {
-  return jsonFetch(`/api/sessions/${encodeURIComponent(id)}`, { method: "DELETE" });
-}
-export function saveSessionGraph(
-  id: string,
-  graphVersion: number,
-  nodes: SessionGraphNode[],
-  edges: SessionGraphEdge[],
-  meta: GraphSaveMeta = {},
-): Promise<{ ok: boolean; nodes: number; edges: number; graphVersion: number }> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "If-Match": String(graphVersion),
-  };
-  if (meta.saveId) headers["X-Ima2-Graph-Save-Id"] = meta.saveId;
-  if (meta.saveReason) headers["X-Ima2-Graph-Save-Reason"] = meta.saveReason;
-  if (meta.tabId) headers["X-Ima2-Tab-Id"] = meta.tabId;
-  return jsonFetch(`/api/sessions/${encodeURIComponent(id)}/graph`, {
-    method: "PUT",
-    headers,
-    body: JSON.stringify({ nodes, edges }),
-  });
-}
-
-// ── Prompt Library (0.23) ─────────────────────────────────────────────────
-
 export type PromptFolder = {
   id: string;
   parentId: string;

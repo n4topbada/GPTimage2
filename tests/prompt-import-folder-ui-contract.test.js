@@ -11,8 +11,8 @@ function readSource(path) {
 
 describe("prompt import folder UI contract", () => {
   it("adds a focused folder section without bypassing commit flow", () => {
-    const dialog = readSource("ui/src/components/PromptImportDialog.tsx");
-    const section = readSource("ui/src/components/PromptImportFolderSection.tsx");
+    const dialog = readSource("ui/src/components/prompt/PromptImportDialog.tsx");
+    const section = readSource("ui/src/components/prompt/PromptImportFolderSection.tsx");
     const api = readSource("ui/src/lib/api.ts");
 
     assert.match(dialog, /PromptImportFolderSection/);

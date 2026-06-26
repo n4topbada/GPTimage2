@@ -13,7 +13,7 @@ http://localhost:3333
 Image generation is OAuth-only in the current build.
 
 - `provider: "oauth"` is the supported generation path.
-- `provider: "api"` returns `403` with `APIKEY_DISABLED` for image generation, edit, and node generation.
+- `provider: "api"` returns `403` with `APIKEY_DISABLED` for image generation and edit routes.
 - API keys may still be used by auxiliary developer paths such as billing checks or style-sheet extraction.
 
 ## Health And Status
@@ -38,7 +38,7 @@ Image generation is OAuth-only in the current build.
 {
   "ok": true,
   "data": {
-    "generatedDirLabel": "~/.ima2/generated",
+    "generatedDirLabel": "<packageRoot>/generated",
     "generatedCount": 0,
     "legacyCandidatesScanned": 18,
     "legacySourcesFound": 0,
@@ -108,38 +108,6 @@ Image edit / image-to-image generation.
 
 The request includes a prompt and image payload. Like `/api/generate`, this route rejects `provider: "api"` unless API-key image generation is intentionally implemented in code.
 
-### `POST /api/node/generate`
-
-Node-mode generation and child edits.
-
-Body fields:
-
-```json
-{
-  "parentNodeId": "optional-server-node-id",
-  "prompt": "continue this image",
-  "quality": "medium",
-  "size": "1024x1024",
-  "format": "png",
-  "moderation": "low",
-  "model": "gpt-5.4",
-  "references": [],
-  "externalSrc": "optional-history-url",
-  "sessionId": "session-id",
-  "clientNodeId": "client-node-id",
-  "requestId": "request-id",
-  "provider": "oauth"
-}
-```
-
-When `parentNodeId` is present, the server loads the stored parent node image and uses the edit path. Extra node references are currently supported only for root nodes.
-
-The route can stream Server-Sent Events when the client sends `Accept: text/event-stream`. Possible events include `phase`, `partial`, `done`, and `error`.
-
-### `GET /api/node/:nodeId`
-
-Fetch stored node metadata and asset URL.
-
 ## Reference Images
 
 Reference uploads are capped at 5 items. The frontend compresses large JPEG/PNG files before sending them. HEIC/HEIF files are rejected with a user-facing conversion hint.
@@ -164,7 +132,7 @@ Server-side validation may return these reference codes:
 | `DELETE` | `/api/history/:filename` | Tombstone a generated asset |
 | `POST` | `/api/history/:filename/restore` | Restore a recently deleted asset |
 
-History rows can include node metadata such as `sessionId`, `nodeId`, `clientNodeId`, `requestId`, and `refsCount`.
+History rows can include legacy session metadata such as `sessionId`, `nodeId`, `clientNodeId`, `requestId`, and `refsCount`.
 
 ## Sessions And Graphs
 
@@ -219,7 +187,6 @@ Style-sheet extraction can require an API key/openai client. This does not reope
 | `GRAPH_VERSION_REQUIRED` | Missing graph `If-Match` header |
 | `GRAPH_VERSION_CONFLICT` | Stale graph version |
 | `GRAPH_TOO_LARGE` | Graph exceeds node/edge limits |
-| `NODE_NOT_FOUND` | Node metadata was not found |
 
 ## Endpoint → CLI Mapping
 
@@ -230,7 +197,6 @@ As of 0.09.x, every server route under `/api/*` has a CLI wrapper. Use this tabl
 | `POST /api/generate` | `ima2 gen` |
 | `POST /api/edit` | `ima2 edit` |
 | `POST /api/generate/multi` (SSE) | `ima2 multimode` |
-| `POST /api/node/generate` (SSE) / `GET /api/node/:id` | `ima2 node generate` / `ima2 node show` |
 | `GET /api/history` | `ima2 ls` |
 | `DELETE /api/history/:name` / `…/permanent` | `ima2 history rm [--permanent]` |
 | `POST /api/history/restore` | `ima2 history restore --trash-id` |
@@ -246,7 +212,6 @@ As of 0.09.x, every server route under `/api/*` has a CLI wrapper. Use this tabl
 | `GET/POST/PUT/DELETE /api/prompt-folders[/…]` | `ima2 prompt folder …` |
 | `…/api/prompt-import/…` | `ima2 prompt import sources/refresh/curated/discovery/folder` |
 | `…/api/cardnews/…` (gated on `features.cardNews`) | `ima2 cardnews …` |
-| `POST /api/comfy/export-image` | `ima2 comfy export` |
 | `GET /api/inflight` / `DELETE /api/inflight/:id` | `ima2 inflight ls` (alias `ps`) / `ima2 inflight rm` (alias `cancel`) |
 | `GET /api/storage/status` / `POST /api/storage/open-generated-dir` | `ima2 storage status` / `ima2 storage open` |
 | `GET /api/billing` / `GET /api/providers` / `GET /api/oauth/status` | `ima2 billing` / `ima2 providers` / `ima2 oauth status` |
@@ -255,7 +220,7 @@ As of 0.09.x, every server route under `/api/*` has a CLI wrapper. Use this tabl
 Notes:
 - `ima2 history favorite` and `ima2 annotate …` send `X-Ima2-Browser-Id: cli-<sha1prefix>` derived from the config dir, so CLI activity does not collide with browser sessions.
 - `ima2 session graph save` performs a GET-then-PUT with `If-Match: "<version>"` to guard against `GRAPH_VERSION_CONFLICT`.
-- `ima2 history import` and `ima2 canvas-versions save/update` send raw bytes with `Content-Type: image/<png|jpeg|webp>`; the SSE endpoints (`multimode`, `node generate`) use `Accept: text/event-stream`.
+- `ima2 history import` and `ima2 canvas-versions save/update` send raw bytes with `Content-Type: image/<png|jpeg|webp>`; the multimode SSE endpoint uses `Accept: text/event-stream`.
 - `ima2 cardnews …` checks `runtimeConfig.features.cardNews` before calling the gated endpoints; when disabled the CLI exits 2 with a clear message instead of producing a 404.
 
 ## CLI Discovery

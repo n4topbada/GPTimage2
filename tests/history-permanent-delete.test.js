@@ -79,12 +79,12 @@ describe("history permanent delete contract", () => {
     const permanentFn =
       /permanentlyDeleteHistoryItemByShortcut:\s*async \(item\) => \{[\s\S]*?\n  removeFromHistory:/.exec(store)?.[0] ?? "";
 
-    assert.match(trashFn, /const target = item\.canvasVersion \? resolveVisibleShortcutCurrent\(get\(\)\.history,\s*item\) : item/);
+    assert.match(trashFn, /const target = item\.canvasVersion\s*\?\s*resolveVisibleShortcutCurrent\(get\(\)\.history,\s*item\)\s*:\s*item/);
     assert.match(trashFn, /if \(!target \|\| target\.canvasVersion \|\| !target\.filename\)/);
     assert.match(trashFn, /gallery\.deleteFailed/);
     assert.doesNotMatch(trashFn, /\?\? item/);
 
-    assert.match(permanentFn, /const target = item\.canvasVersion \? resolveVisibleShortcutCurrent\(get\(\)\.history,\s*item\) : item/);
+    assert.match(permanentFn, /const target = item\.canvasVersion\s*\?\s*resolveVisibleShortcutCurrent\(get\(\)\.history,\s*item\)\s*:\s*item/);
     assert.match(permanentFn, /if \(!target \|\| target\.canvasVersion \|\| !target\.filename\)/);
     assert.match(permanentFn, /gallery\.deleteFailed/);
     assert.doesNotMatch(permanentFn, /\?\? item/);

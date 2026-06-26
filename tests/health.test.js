@@ -192,6 +192,49 @@ describe("Server: /api/health + advertisement", () => {
     assert.strictEqual(lastOAuthPayload.tools[1].type, "image_generation");
     assert.strictEqual(lastOAuthPayload.tools[1].quality, "medium");
     assert.strictEqual(lastOAuthPayload.tools[1].moderation, "auto");
+    assert.strictEqual(lastOAuthPayload.tools[1].action, "generate");
+  });
+
+  it("/api/generate omits unsupported input_fidelity from the image tool", async () => {
+    lastOAuthPayload = null;
+    const r = await fetch(`http://localhost:${PORT}/api/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: "test reference image forwarding",
+        quality: "high",
+        size: "1024x1024",
+        moderation: "low",
+        references: ["aGVsbG8="],
+      }),
+    });
+    assert.strictEqual(r.status, 200);
+    assert.ok(lastOAuthPayload, "proxy request should be captured");
+    assert.strictEqual(lastOAuthPayload.tools[1].type, "image_generation");
+    assert.strictEqual(lastOAuthPayload.tools[1].action, "generate");
+    assert.strictEqual(lastOAuthPayload.tools[1].input_fidelity, undefined);
+  });
+
+  it("/api/generate normalizes unsupported UI sizes before calling the image tool", async () => {
+    lastOAuthPayload = null;
+    const r = await fetch(`http://localhost:${PORT}/api/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: "test unsupported UI size normalization",
+        quality: "medium",
+        size: "4096x4096",
+        moderation: "low",
+      }),
+    });
+    assert.strictEqual(r.status, 200);
+    const body = await r.json();
+    assert.strictEqual(body.size, "1024x1024");
+    assert.strictEqual(body.requestedSize, "4096x4096");
+    assert.strictEqual(body.sizeAdjusted, true);
+    assert.ok(lastOAuthPayload, "proxy request should be captured");
+    assert.strictEqual(lastOAuthPayload.tools[1].type, "image_generation");
+    assert.strictEqual(lastOAuthPayload.tools[1].size, "1024x1024");
   });
 
   it("/api/inflight keeps terminal jobs opt-in and active jobs clean", async () => {

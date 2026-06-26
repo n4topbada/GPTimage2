@@ -2,7 +2,7 @@
 // Pattern-match upstream OpenAI / OAuth / network errors into stable ImaErrorCode
 // values so the UI can surface localized, actionable messages with CTAs.
 
-/** @typedef {"REF_TOO_LARGE"|"REF_NOT_BASE64"|"REF_EMPTY"|"REF_TOO_MANY"|"MODERATION_REFUSED"|"UPSTREAM_5XX"|"AUTH_CHATGPT_EXPIRED"|"AUTH_API_KEY_INVALID"|"NETWORK_FAILED"|"OAUTH_UNAVAILABLE"|"INVALID_REQUEST"|"INVALID_MODERATION"|"APIKEY_DISABLED"|"SAFETY_REFUSAL"|"EMPTY_RESPONSE"|"OAUTH_UPSTREAM_ERROR"|"DB_ERROR"|"UNKNOWN"} ImaErrorCode */
+/** @typedef {"REF_TOO_LARGE"|"REF_NOT_BASE64"|"REF_EMPTY"|"REF_TOO_MANY"|"MODERATION_REFUSED"|"UPSTREAM_5XX"|"AUTH_CHATGPT_EXPIRED"|"AUTH_API_KEY_INVALID"|"NETWORK_FAILED"|"OAUTH_UNAVAILABLE"|"INVALID_REQUEST"|"INVALID_MODERATION"|"APIKEY_DISABLED"|"SAFETY_REFUSAL"|"EMPTY_RESPONSE"|"IMAGE_TOOL_FAILED"|"OAUTH_UPSTREAM_ERROR"|"DB_ERROR"|"UNKNOWN"} ImaErrorCode */
 
 const INVALID_REQUEST_CODES = new Set([
   "bad_request",
@@ -71,7 +71,11 @@ export function classifyUpstreamError(msg) {
     s.includes("econnreset") ||
     s.includes("enotfound") ||
     s.includes("etimedout") ||
-    s.includes("network error")
+    s.includes("network error") ||
+    s === "terminated" ||
+    s.includes("socket hang up") ||
+    s.includes("other side closed") ||
+    s.includes("premature close")
   ) {
     return "NETWORK_FAILED";
   }

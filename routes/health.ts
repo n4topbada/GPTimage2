@@ -1,4 +1,9 @@
-import { listJobs, listTerminalJobs, finishJob } from "../lib/inflight.js";
+import {
+  clearTerminalJobs,
+  listJobs,
+  listTerminalJobs,
+  finishJob,
+} from "../lib/inflight.js";
 
 export function registerHealthRoutes(app, ctx) {
   const runtimePorts = () => ({
@@ -83,6 +88,19 @@ export function registerHealthRoutes(app, ctx) {
 
   app.delete("/api/inflight/:requestId", (req, res) => {
     finishJob(req.params.requestId, { canceled: true });
+    res.status(204).end();
+  });
+
+  app.delete("/api/inflight-terminal", (req, res) => {
+    const kind =
+      typeof req.query.kind === "string" && req.query.kind.length > 0
+        ? req.query.kind
+        : undefined;
+    const sessionId =
+      typeof req.query.sessionId === "string" && req.query.sessionId.length > 0
+        ? req.query.sessionId
+        : undefined;
+    clearTerminalJobs({ kind, sessionId });
     res.status(204).end();
   });
 

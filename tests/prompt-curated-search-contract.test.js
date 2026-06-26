@@ -21,7 +21,7 @@ describe("prompt curated search contract", () => {
   it("keeps indexed candidates commit-compatible and avoids auto-import", () => {
     const index = readSource("lib/promptImport/promptIndex.ts");
     const api = readSource("ui/src/lib/api.ts");
-    const dialog = readSource("ui/src/components/PromptImportDialog.tsx");
+    const dialog = readSource("ui/src/components/prompt/PromptImportDialog.tsx");
 
     assert.match(index, /text: candidate\.text/);
     assert.match(index, /contentHash/);

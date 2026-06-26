@@ -4,19 +4,19 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import express from "express";
-import { listImageTemplates, getImageTemplate } from "../lib/cardNewsTemplateStore.ts";
-import { createCardNewsDraft } from "../lib/cardNewsPlanner.ts";
-import { generateCardNewsSet } from "../lib/cardNewsGenerator.ts";
-import { listHistoryRows } from "../lib/historyList.ts";
-import { readCardNewsSetPlan } from "../lib/cardNewsManifestStore.ts";
-import { repairPlannerOutput, validatePlannerOutput } from "../lib/cardNewsPlannerSchema.ts";
+import { listImageTemplates, getImageTemplate } from "../lib/cardNewsTemplateStore";
+import { createCardNewsDraft } from "../lib/cardNewsPlanner";
+import { generateCardNewsSet } from "../lib/cardNewsGenerator";
+import { listHistoryRows } from "../lib/historyList";
+import { readCardNewsSetPlan } from "../lib/cardNewsManifestStore";
+import { repairPlannerOutput, validatePlannerOutput } from "../lib/cardNewsPlannerSchema";
 import {
   createCardNewsJob,
   getCardNewsJob,
   retryCardNewsJob,
   updateCardNewsJobCard,
-} from "../lib/cardNewsJobStore.ts";
-import { configureRoutes } from "../routes/index.ts";
+} from "../lib/cardNewsJobStore";
+import { configureRoutes } from "../routes/index";
 
 const rootDir = process.cwd();
 const PNG_B64 = Buffer.from("generated-card").toString("base64");

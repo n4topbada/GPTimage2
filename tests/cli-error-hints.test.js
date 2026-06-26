@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert";
-import { hintForErrorCode, formatErrorWithHint } from "../bin/lib/error-hints.js";
+import { hintForErrorCode, formatErrorWithHint } from "../bin/lib/error-hints";
 
 describe("CLI error hints", () => {
   it("maps network/oauth errors separately from moderation", () => {

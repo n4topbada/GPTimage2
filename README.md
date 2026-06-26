@@ -10,7 +10,7 @@
 
 `ima2-gen` is a local image generation studio for people who want the ChatGPT/Codex image workflow in a small desktop-like web app.
 
-Run it with `npx`, sign in with Codex OAuth, type a prompt, and keep iterating with history, references, node branches, multimode batches, and Canvas Mode cleanup. No OpenAI API key is required for image generation in the default path.
+Run it with `npx`, sign in with Codex OAuth, type a prompt, and keep iterating with history, references, multimode batches, and Canvas Mode cleanup. No OpenAI API key is required for image generation in the default path.
 
 ![ima2-gen classic generation screen with prompt composer, generated image, compact model label, and result metadata.](assets/screenshots/classic-generate-light.png)
 
@@ -46,7 +46,6 @@ persists, reboot and run the update before starting ima2 again.
 ## What It Does
 
 - **Classic mode**: generate, edit, reuse the current image, paste references, and continue from history.
-- **Node mode**: branch a good image into multiple directions without losing the original.
 - **Multimode batches**: launch several Classic outputs from one prompt, watch slot-by-slot progress, and continue from the best result.
 - **Canvas Mode**: zoom, pan, annotate, erase, clean backgrounds, keep transparent previews, and export either alpha or matte-backed versions.
 - **Local gallery**: keep generated assets on your machine with session-aware history.
@@ -54,6 +53,25 @@ persists, reboot and run the update before starting ima2 again.
 - **Prompt library imports**: import local prompt packs, GitHub folders, and curated GPT-image prompt hints into the built-in prompt library.
 - **Mobile shell**: use the app bar, compose sheet, and compact settings toggle on smaller screens.
 - **Observable jobs**: active and recent jobs are tracked with safe logs and request IDs.
+
+## Source Layout
+
+The frontend keeps feature surfaces grouped by role:
+
+```text
+ui/src/components/
+  canvas-mode/   Canvas editor workspace and tools
+  card-news/     Dev-only Card News workspace
+  feedback/      Modals, toasts, billing/status surfaces
+  gallery/       Thumbnail rail, gallery modal, queue/log surfaces
+  generation/    Model, size, count, and generation mode controls
+  layout/        App shell panels and mobile shell
+  prompt/        Prompt composer, library, and import UI
+  result/        Main image viewer and result actions
+  settings/      Settings workspace and appearance/account controls
+```
+
+Server code is split between `routes/` for HTTP surfaces and `lib/` for provider, storage, metadata, prompt import, and job helpers. Generated assets are written to the repo-local `generated/` folder by default.
 
 ## OAuth Only For Image Generation
 
@@ -88,14 +106,6 @@ Use Classic when you want one strong result quickly.
 5. Copy, download, continue from the result, or send it into Canvas Mode.
 
 ![Multimode sequence with four candidate slots generating from one prompt and active job history in the sidebar.](assets/screenshots/multimode-sequence.png)
-
-### Node Mode
-
-Use Node mode when you want to explore branches.
-
-![Node mode with connected generated cards and compact per-node metadata.](assets/screenshots/node-graph-branching.png)
-
-Each node keeps its own prompt and result. Root nodes can attach local references; child nodes use the parent image as their source. Completed jobs are matched back to nodes by request ID, so reloads and graph version conflicts can recover finished results.
 
 ### Canvas Mode
 
@@ -184,7 +194,7 @@ environment variables > ~/.ima2/config.json > built-in defaults
 | `IMA2_SERVER` | — | CLI target override |
 | `IMA2_CONFIG_DIR` | `~/.ima2` | Config and SQLite location |
 | `IMA2_ADVERTISE_FILE` | `~/.ima2/server.json` | Runtime discovery file |
-| `IMA2_GENERATED_DIR` | `~/.ima2/generated` | Generated image directory |
+| `IMA2_GENERATED_DIR` | `<packageRoot>/generated` | Generated image directory |
 | `IMA2_IMAGE_MODEL_DEFAULT` | `gpt-5.4-mini` | Server fallback image model |
 | `IMA2_NO_OAUTH_PROXY` | — | Set `1` to disable the auto-started OAuth proxy |
 | `IMA2_LOG_LEVEL` | `warn` | Normal serve defaults to `warn`; dev mode defaults to `debug`; supports `debug`, `info`, `warn`, `error`, or `silent` |
@@ -193,9 +203,9 @@ environment variables > ~/.ima2/config.json > built-in defaults
 
 ### Logging modes
 
-`ima2 serve` keeps terminal output intentionally quiet: startup URLs, warnings, and errors stay visible, while request/node/OAuth structured logs are hidden by default.
+`ima2 serve` keeps terminal output intentionally quiet: startup URLs, warnings, and errors stay visible, while request/OAuth structured logs are hidden by default.
 
-Use `ima2 serve --dev`, `npm run dev`, or `IMA2_LOG_LEVEL=debug ima2 serve` when you need request IDs, node generation phases, OAuth stream diagnostics, or inflight state transitions. Explicit `IMA2_LOG_LEVEL` and `~/.ima2/config.json` values still override the built-in defaults.
+Use `ima2 serve --dev`, `npm run dev`, or `IMA2_LOG_LEVEL=debug ima2 serve` when you need request IDs, OAuth stream diagnostics, or inflight state transitions. Explicit `IMA2_LOG_LEVEL` and `~/.ima2/config.json` values still override the built-in defaults.
 
 ## API Reference
 
@@ -229,7 +239,7 @@ Use OAuth for generation. API-key image generation is intentionally disabled in 
 The app compresses large JPEG/PNG references before upload. If a file still fails, convert it to JPEG or PNG at a lower resolution and try again. HEIC/HEIF files are not supported by the browser path.
 
 **Old gallery images are missing after updating**
-Recent versions moved generated images from the installed package folder to `~/.ima2/generated`. Run `ima2 doctor` and see [Recover old images](docs/RECOVER_OLD_IMAGES.md).
+Generated images are stored in the repo-local `generated/` folder by default. Run `ima2 doctor` and see [Recover old images](docs/RECOVER_OLD_IMAGES.md) if you need to recover images from an older install location.
 
 **`gpt-5.5` fails but other models work**
 Update Codex CLI first, then retry. If it still fails, your account or backend route may not expose the same image capability or quota for `gpt-5.5` yet; use `gpt-5.4` as the stable fallback.
@@ -254,7 +264,7 @@ npm test
 npm run build
 ```
 
-`npm run dev` builds the UI and starts the TypeScript server entry with `--watch` and verbose server diagnostics. `npm run typecheck`, `npm run build:server`, and `npm run build:cli` verify the TypeScript migration and package emit path. Node mode and Canvas Mode are part of the packaged UI by default.
+`npm run dev` builds the UI and starts the TypeScript server entry with `--watch` and verbose server diagnostics. `npm run typecheck`, `npm run build:server`, and `npm run build:cli` verify the TypeScript migration and package emit path. Canvas Mode is part of the packaged UI by default.
 
 ## License
 

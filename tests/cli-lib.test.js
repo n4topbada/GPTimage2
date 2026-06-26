@@ -1,9 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert";
-import { parseArgs } from "../bin/lib/args.js";
-import { normalizeGenerate } from "../bin/lib/client.js";
-import { dataUriToFile, fileToDataUri, defaultOutName } from "../bin/lib/files.js";
-import { exitCodeForError } from "../bin/lib/output.js";
+import { parseArgs } from "../bin/lib/args";
+import { normalizeGenerate } from "../bin/lib/client";
+import { dataUriToFile, fileToDataUri, defaultOutName } from "../bin/lib/files";
+import { exitCodeForError } from "../bin/lib/output";
 import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";

@@ -11,8 +11,8 @@ function readSource(path) {
 
 describe("prompt discovery UI contract", () => {
   it("wires discovery as a focused opt-in section separate from commit candidates", () => {
-    const dialog = readSource("ui/src/components/PromptImportDialog.tsx");
-    const section = readSource("ui/src/components/PromptImportDiscoverySection.tsx");
+    const dialog = readSource("ui/src/components/prompt/PromptImportDialog.tsx");
+    const section = readSource("ui/src/components/prompt/PromptImportDiscoverySection.tsx");
 
     assert.match(dialog, /PromptImportDiscoverySection/);
     assert.match(dialog, /sourcePanel/);
@@ -25,7 +25,7 @@ describe("prompt discovery UI contract", () => {
 
   it("uses discovery API helpers without sending prompt candidate payloads", () => {
     const api = readSource("ui/src/lib/api.ts");
-    const section = readSource("ui/src/components/PromptImportDiscoverySection.tsx");
+    const section = readSource("ui/src/components/prompt/PromptImportDiscoverySection.tsx");
 
     assert.match(api, /export type PromptDiscoveryCandidate/);
     assert.match(api, /export type PromptDiscoveryReviewStatus/);

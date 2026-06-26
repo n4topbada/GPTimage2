@@ -2,7 +2,6 @@ import { registerHealthRoutes } from "./health.js";
 import { registerHistoryRoutes } from "./history.js";
 import { registerSessionRoutes } from "./sessions.js";
 import { registerEditRoutes } from "./edit.js";
-import { registerNodeRoutes } from "./nodes.js";
 import { registerGenerateRoutes } from "./generate.js";
 import { registerMultimodeRoutes } from "./multimode.js";
 import { registerStorageRoutes } from "./storage.js";
@@ -12,7 +11,6 @@ import { registerPromptRoutes } from "./prompts.js";
 import { registerPromptImportRoutes } from "./promptImport.js";
 import { registerAnnotationRoutes } from "./annotations.js";
 import { registerCanvasVersionRoutes } from "./canvasVersions.js";
-import { registerComfyRoutes } from "./comfy.js";
 import { registerImageImportRoutes } from "./imageImport.js";
 
 export function configureRoutes(app, ctx) {
@@ -23,10 +21,8 @@ export function configureRoutes(app, ctx) {
   registerAnnotationRoutes(app, ctx);
   registerCanvasVersionRoutes(app, ctx);
   registerImageImportRoutes(app, ctx);
-  registerComfyRoutes(app, ctx);
   registerSessionRoutes(app, ctx);
   registerEditRoutes(app, ctx);
-  registerNodeRoutes(app, ctx);
   if (ctx.config.features.cardNews) registerCardNewsRoutes(app, ctx);
   registerMultimodeRoutes(app, ctx);
   registerGenerateRoutes(app, ctx);

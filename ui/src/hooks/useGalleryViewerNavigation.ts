@@ -11,13 +11,10 @@ const KEY_TO_ACTION: Record<string, GalleryShortcutAction | undefined> = {
 };
 
 export function useGalleryViewerNavigation() {
-  const uiMode = useAppStore((s) => s.uiMode);
   const currentImage = useAppStore((s) => s.currentImage);
   const selectHistoryShortcutTarget = useAppStore((s) => s.selectHistoryShortcutTarget);
 
   useEffect(() => {
-    if (uiMode !== "classic") return;
-
     const onKeyDown = (event: KeyboardEvent) => {
       const action = KEY_TO_ACTION[event.key];
       if (!action) return;
@@ -31,5 +28,5 @@ export function useGalleryViewerNavigation() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [currentImage, selectHistoryShortcutTarget, uiMode]);
+  }, [currentImage, selectHistoryShortcutTarget]);
 }

@@ -44,7 +44,8 @@ describe("gallery shortcut visible-domain contract", () => {
     assert.match(store, /selectHistory:\s*\(item\) =>/);
     assert.match(store, /item\.canvasVersion\s*\?/);
     assert.match(store, /saveSelectedFilename\(target\?\.filename \?\? null\)/);
-    assert.match(store, /set\(\{ currentImage: target, unseenGeneratedCount: 0 \}\)/);
+    assert.match(store, /currentImage:\s*target/);
+    assert.match(store, /unseenGeneratedCount:\s*0/);
   });
 
   it("normalizes persisted hidden canvas selections during hydration and storage sync", () => {
@@ -54,7 +55,7 @@ describe("gallery shortcut visible-domain contract", () => {
     assert.match(store, /const normalized = matched\s*\?\s*resolveVisibleShortcutCurrent\(s\.history, matched\)/);
     assert.match(store, /s\.currentImage\?\.canvasVersion/);
     assert.match(store, /const visibleHistory = getVisibleGalleryItems\(history\)/);
-    assert.match(store, /\(matched \? resolveVisibleShortcutCurrent\(history, matched\) : null\)/);
+    assert.match(store, /\(matched\s*\?\s*resolveVisibleShortcutCurrent\(history, matched\)\s*:\s*null\)/);
     assert.match(store, /saveSelectedFilename\(currentImage\?\.filename \?\? null\)/);
   });
 });

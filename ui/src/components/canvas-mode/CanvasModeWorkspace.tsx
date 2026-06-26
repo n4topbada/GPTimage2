@@ -8,11 +8,10 @@ import {
   type WheelEvent,
 } from "react";
 import { useAppStore } from "../../store/useAppStore";
-import { ResultActions } from "../ResultActions";
-import { MultimodeSequencePreview } from "../MultimodeSequencePreview";
+import { ResultActions } from "../result/ResultActions";
+import { MultimodeSequencePreview } from "../result/MultimodeSequencePreview";
 import { useI18n } from "../../i18n";
 import { isEditableTarget } from "../../lib/domEvents";
-import { getImageModelShortLabel } from "../../lib/imageModels";
 import type { GenerateItem } from "../../types";
 import { useCreateBlankCanvas } from "../../hooks/useCreateBlankCanvas";
 import {
@@ -29,8 +28,6 @@ import {
   BRUSH_ERASER_CURSOR,
   OBJECT_ERASER_CURSOR,
   findCanvasVersionForSource,
-  formatQualityAlias,
-  formatSizeAlias,
   getCanvasDisplaySrc,
 } from "./canvasModeHelpers";
 import type { CanvasModeWorkspaceProps } from "./canvasModeTypes";
@@ -54,7 +51,6 @@ export function CanvasModeWorkspace(_props: CanvasModeWorkspaceProps) {
     (s) => s.permanentlyDeleteHistoryItemByShortcut,
   );
   const markGeneratedResultsSeen = useAppStore((s) => s.markGeneratedResultsSeen);
-  const activeGenerations = useAppStore((s) => s.activeGenerations);
   const quality = useAppStore((s) => s.quality);
   const format = useAppStore((s) => s.format);
   const moderation = useAppStore((s) => s.moderation);
@@ -97,15 +93,6 @@ export function CanvasModeWorkspace(_props: CanvasModeWorkspaceProps) {
   const [isEditingWithMask, setIsEditingWithMask] = useState(false);
   const annotations = useCanvasAnnotations();
 
-  const copyPrompt = () => {
-    if (!currentImage?.prompt) return;
-    void navigator.clipboard.writeText(currentImage.prompt);
-    showToast(t("toast.promptCopied"));
-  };
-
-  const displayQuality = formatQualityAlias(currentImage?.quality ?? quality);
-  const displaySize = formatSizeAlias(currentImage?.size ?? getResolvedSize());
-  const displayModel = getImageModelShortLabel(currentImage?.model);
   const imageKey = currentImage?.filename ?? currentImage?.url ?? currentImage?.image ?? null;
   const latestCanvasVersion = findCanvasVersionForSource(history, currentImage);
   const canvasDisplayImage = canvasOpen ? (canvasVersionItem ?? latestCanvasVersion ?? currentImage) : currentImage;
@@ -367,7 +354,6 @@ export function CanvasModeWorkspace(_props: CanvasModeWorkspaceProps) {
           onClose={() => void handleCloseCanvas()}
         />
       )}
-      <div className={`progress-bar${activeGenerations > 0 ? " active" : ""}`} />
       {multimodeSequence ? (
         <MultimodeSequencePreview />
       ) : currentImage ? (
@@ -485,22 +471,7 @@ export function CanvasModeWorkspace(_props: CanvasModeWorkspaceProps) {
                   : t("canvas.version.failed")}
             </div>
           ) : null}
-          <div className="result-meta">
-            {[
-              currentImage.elapsed != null ? `${currentImage.elapsed}s` : null,
-              currentImage.usage
-                ? t("canvas.tokens", { n: currentImage.usage.total_tokens ?? "?" })
-                : null,
-              displayQuality,
-              displaySize,
-              displayModel,
-              currentImage.provider ?? null,
-            ]
-              .filter((v): v is string => Boolean(v))
-              .join(" · ")}
-          </div>
           <ResultActions imageOverride={canvasOpen ? canvasDisplayImage : null} />
-          {currentImage.prompt ? <div className="result-prompt" onClick={copyPrompt}>{currentImage.prompt}</div> : null}
         </div>
       ) : null}
     </main>

@@ -1,4 +1,4 @@
-export type UIMode = "classic" | "node" | "card-news";
+export type UIMode = "classic";
 export type SettingsSection = "account" | "generation" | "appearance" | "language" | "future";
 export type HistoryStripLayout = "rail" | "horizontal" | "sidebar";
 export type ThemePreference = "system" | "dark" | "light";
@@ -21,19 +21,17 @@ export type UnsupportedImageModel = "gpt-5.3-codex-spark";
 export type Count = number;
 
 export type SizePreset =
-  | "1024x1024"
-  | "1536x1024"
-  | "1024x1536"
-  | "1360x1024"
-  | "1024x1360"
-  | "1824x1024"
-  | "1024x1824"
-  | "2048x2048"
-  | "2048x1152"
-  | "1152x2048"
-  | "3840x2160"
-  | "2160x3840"
   | "auto"
+  | "2048x1152"
+  | "1872x1248"
+  | "1248x1872"
+  | "1152x2048"
+  | "1536x1536"
+  | "3840x2160"
+  | "3520x2352"
+  | "2352x3520"
+  | "2160x3840"
+  | "2880x2880"
   | "custom";
 
 export type GenerateItem = {
@@ -152,6 +150,7 @@ export function isMultiResponse(r: GenerateResponse): r is GenerateMultiResponse
 
 export type GenerateRequest = {
   prompt: string;
+  displayPrompt?: string;
   quality: Quality;
   size: string;
   format: Format;
@@ -164,6 +163,7 @@ export type GenerateRequest = {
   mask?: string;
   references?: string[];
   requestId?: string;
+  clientMeta?: Record<string, unknown>;
   mode?: "auto" | "direct";
   webSearchEnabled?: boolean;
 };

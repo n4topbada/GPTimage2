@@ -187,6 +187,25 @@ async function serve(serveArgs = []) {
   process.on("SIGTERM", () => child.kill("SIGTERM"));
 }
 
+async function serveLlm() {
+  try {
+    await maybePromptGithubStar();
+  } catch (err) {
+    console.error(`[ima2] Star prompt skipped: ${err?.message || err}`);
+  }
+
+  const serverPath = join(ROOT, "llmServer.js");
+  const child = spawn("node", [serverPath], {
+    stdio: "inherit",
+    env: { ...process.env },
+    cwd: ROOT,
+  });
+
+  child.on("exit", (code) => process.exit(code));
+  process.on("SIGINT", () => child.kill("SIGINT"));
+  process.on("SIGTERM", () => child.kill("SIGTERM"));
+}
+
 async function showStatus() {
   const config = loadConfig();
   console.log(`\n  ${pkg.name} v${pkg.version}\n`);
@@ -317,6 +336,7 @@ function showHelp() {
 
   Server commands:
     serve [--dev]  Start the image generation server
+    llm            Start the text-only LLM OAuth proxy
     setup, login   Configure API key or OAuth (interactive)
     status         Show current configuration status
     doctor         Diagnose environment and setup
@@ -332,11 +352,9 @@ function showHelp() {
     history <sub>  History write-ops              (ima2 history --help)
     prompt <sub>   Prompt library + folders + import (ima2 prompt --help)
     multimode <prompt>   Multi-image SSE generation (ima2 multimode --help)
-    node <sub>     Node-mode generate/show          (ima2 node --help)
     annotate <sub> Image annotations CRUD           (ima2 annotate --help)
     canvas-versions <sub>  Canvas version save/update (ima2 canvas-versions --help)
     metadata <file>  Read embedded metadata
-    comfy <sub>    ComfyUI workflow export          (ima2 comfy --help)
     cardnews <sub> Card News templates/jobs/export  (ima2 cardnews --help)
     ps             List active jobs               (ima2 ps --help)
     cancel <id>    Mark an in-flight job canceled (ima2 cancel --help)
@@ -354,6 +372,7 @@ function showHelp() {
 
   Examples:
     ima2 serve                       Start server
+    ima2 llm                         Start text-only LLM proxy
     ima2 serve --dev                 Start with verbose server diagnostics
     ima2 gen "a shiba in space"      Generate from CLI
     ima2 gen "merge" --ref a.png --ref b.png -q high -o out.png
@@ -372,7 +391,7 @@ if (args.includes("-v") || args.includes("--version")) {
 }
 
 if ((!command || args.includes("-h") || args.includes("--help"))
-    && !["gen", "edit", "ls", "show", "ps", "cancel", "session", "history", "prompt", "multimode", "node", "annotate", "canvas-versions", "metadata", "comfy", "cardnews", "inflight", "storage", "billing", "providers", "oauth", "config", "ping"].includes(command)) {
+    && !["gen", "edit", "ls", "show", "ps", "cancel", "session", "history", "prompt", "multimode", "annotate", "canvas-versions", "metadata", "cardnews", "inflight", "storage", "billing", "providers", "oauth", "config", "ping"].includes(command)) {
   showHelp();
   process.exit(command ? 0 : 1);
 }
@@ -380,6 +399,9 @@ if ((!command || args.includes("-h") || args.includes("--help"))
 switch (command) {
   case "serve":
     serve(args.slice(1));
+    break;
+  case "llm":
+    serveLlm();
     break;
   case "setup":
   case "login":
@@ -412,11 +434,9 @@ switch (command) {
   case "history":
   case "prompt":
   case "multimode":
-  case "node":
   case "annotate":
   case "canvas-versions":
   case "metadata":
-  case "comfy":
   case "cardnews":
   case "config":
   case "ping": {

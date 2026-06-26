@@ -31,8 +31,8 @@ describe("canvas apply merged contract", () => {
     assert.match(store, /applyMergedCanvasImage/);
     assert.doesNotMatch(store, /applyMergedCanvasImage: \(item\) => \{\s*saveSelectedFilename/);
     assert.doesNotMatch(store, /applyMergedCanvasImage[\s\S]{0,250}currentImage: item/);
-    assert.match(store, /s\.history\.some\(\(h\) => h\.filename === item\.filename\)/);
-    assert.match(store, /\[item, \.\.\.s\.history\]/);
+    assert.match(store, /const filtered = s\.history\.filter\(\(h\) => h\.filename !== item\.filename\)/);
+    assert.match(store, /history:\s*\[item, \.\.\.filtered\]\.slice\(0, HISTORY_LIMIT\)/);
 
     const canvas = readSource("ui/src/components/canvas-mode/useCanvasModeSession.ts");
     assert.match(canvas, /createCanvasVersion/);
@@ -57,7 +57,7 @@ describe("canvas apply merged contract", () => {
   });
 
   it("keeps Continue Here on a compressed canvas reference path", () => {
-    const actions = readSource("ui/src/components/ResultActions.tsx");
+    const actions = readSource("ui/src/components/result/ResultActions.tsx");
     const store = readSource("ui/src/store/useAppStore.ts");
     const canvas = readSource("ui/src/components/canvas-mode/CanvasModeWorkspace.tsx");
     assert.match(actions, /imageOverride\?: GenerateItem \| null/);
@@ -74,9 +74,8 @@ describe("canvas apply merged contract", () => {
     assert.match(actions, /source content and preserve\/complete/);
     assert.match(actions, /edit instructions/);
     assert.match(canvas, /<ResultActions imageOverride=\{canvasOpen \? canvasDisplayImage : null\} \/>/);
-    assert.match(store, /compressReferenceSource\(cur\.image/);
     assert.match(store, /useImageAsReference: async \(item\)/);
-    assert.match(store, /compressReferenceSource\(item\.image/);
+    assert.match(store, /compressReferenceSource\(\s*item\.image/);
     assert.match(store, /attachCanvasVersionReference/);
     assert.match(store, /compressReferenceSource\(\s*item\.image/);
     assert.doesNotMatch(store, /referenceImages:\s*\[\s*item\.image/);

@@ -10,7 +10,7 @@ import {
   normalizeLogLevel,
   sanitizeFields,
   shouldLog,
-} from "../lib/logger.ts";
+} from "../lib/logger";
 
 test("logger redacts secrets, raw prompts, base64-ish fields, and bodies", () => {
   const safe = sanitizeFields({

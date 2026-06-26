@@ -11,8 +11,8 @@ function readSource(path) {
 
 describe("prompt import dialog UI contract", () => {
   it("opens a dialog-first import flow instead of directly opening Finder", () => {
-    const panel = readSource("ui/src/components/PromptLibraryPanel.tsx");
-    const dialog = readSource("ui/src/components/PromptImportDialog.tsx");
+    const panel = readSource("ui/src/components/prompt/PromptLibraryPanel.tsx");
+    const dialog = readSource("ui/src/components/prompt/PromptImportDialog.tsx");
     const api = readSource("ui/src/lib/api.ts");
     const css = readSource("ui/src/index.css");
 

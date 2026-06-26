@@ -5,9 +5,13 @@ import { editViaOAuth } from "../lib/oauthProxy.js";
 import { classifyUpstreamError } from "../lib/errorClassify.js";
 import { normalizeOAuthParams } from "../lib/oauthNormalize.js";
 import { normalizeImageModel, normalizeReasoningEffort } from "../lib/imageModels.js";
+import { normalizeImageToolSize } from "../lib/imageToolSize.js";
+import { validateAndNormalizeRefs } from "../lib/refs.js";
 import { startJob, finishJob } from "../lib/inflight.js";
 import { logEvent, logError } from "../lib/logger.js";
 import { hasPngAlphaChannel, parsePngInfo } from "../lib/pngInfo.js";
+import { isRequestQueuedBeforeServerBoot, staleClientQueuePayload } from "../lib/requestFreshness.js";
+import { queueGeneratedDriveUpload } from "../lib/driveUpload.js";
 
 function validateModeration(ctx, moderation) {
   if (typeof moderation !== "string" || !ctx.config.oauth.validModeration.has(moderation)) {
@@ -62,9 +66,13 @@ function validateEditMask(imageB64, mask) {
 export function registerEditRoutes(app, ctx) {
   app.post("/api/edit", async (req, res) => {
     const requestId = typeof req.body?.requestId === "string" ? req.body.requestId : req.id;
+    if (isRequestQueuedBeforeServerBoot(requestId, ctx.startedAt)) {
+      return res.status(409).json(staleClientQueuePayload(requestId));
+    }
     let finishStatus = "completed";
     let finishHttpStatus;
     let finishErrorCode;
+    let finishErrorMessage;
     let finishMeta = {};
     try {
       const {
@@ -78,7 +86,8 @@ export function registerEditRoutes(app, ctx) {
         mode: promptMode = "auto",
         model: rawModel,
         reasoningEffort: rawReasoningEffort,
-        webSearchEnabled: rawWebSearchEnabled = true,
+        webSearchEnabled: rawWebSearchEnabled = false,
+        references = [],
       } = req.body;
       const { quality, warnings: qualityWarnings } = normalizeOAuthParams({ provider, quality: rawQuality });
       const modelCheck = normalizeImageModel(ctx, rawModel);
@@ -100,6 +109,9 @@ export function registerEditRoutes(app, ctx) {
       const webSearchEnabled = rawWebSearchEnabled !== false;
       const sessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId : null;
       const normalizedPromptMode = promptMode === "direct" ? "direct" : "auto";
+      const sizeCheck = normalizeImageToolSize(size);
+      const outputSize = sizeCheck.size;
+      const cacheBust = ctx.config?.oauth?.cacheBust === true;
 
       startJob({
         requestId,
@@ -110,7 +122,12 @@ export function registerEditRoutes(app, ctx) {
           sessionId,
           quality,
           model: imageModel,
-          size,
+          promptMode: normalizedPromptMode,
+          webSearchEnabled,
+          cacheBust,
+          size: outputSize,
+          requestedSize: sizeCheck.requestedSize,
+          sizeAdjusted: sizeCheck.adjusted,
         },
       });
 
@@ -126,6 +143,13 @@ export function registerEditRoutes(app, ctx) {
         finishHttpStatus = 400;
         finishErrorCode = maskCheck.code;
         return res.status(400).json({ error: maskCheck.error, code: maskCheck.code });
+      }
+      const refCheck = validateAndNormalizeRefs(references);
+      if (refCheck.error) {
+        finishStatus = "error";
+        finishHttpStatus = 400;
+        finishErrorCode = refCheck.code;
+        return res.status(400).json({ error: refCheck.error, code: refCheck.code });
       }
       const moderationCheck = validateModeration(ctx, moderation);
       if (moderationCheck.error) {
@@ -147,27 +171,38 @@ export function registerEditRoutes(app, ctx) {
         provider: "oauth",
         quality,
         model: imageModel,
-        size,
+        size: outputSize,
+        requestedSize: sizeCheck.requestedSize,
+        sizeAdjusted: sizeCheck.adjusted,
         moderation,
         sessionId,
         promptChars: typeof prompt === "string" ? prompt.length : 0,
         promptMode: normalizedPromptMode,
         webSearchEnabled,
+        cacheBust,
         inputImageChars: typeof imageB64 === "string" ? imageB64.length : 0,
         maskPresent: Boolean(maskCheck.mask),
         maskBytes: maskCheck.maskBytes ?? 0,
+        refs: refCheck.refs.length,
       });
       const startTime = Date.now();
       const { b64: resultB64, usage, revisedPrompt, webSearchCalls = 0 } = await editViaOAuth(
         prompt,
         imageB64,
         quality,
-        size,
+        outputSize,
         moderation,
         normalizedPromptMode,
         ctx,
         requestId,
-        { model: imageModel, reasoningEffort, webSearchEnabled, mask: maskCheck.mask },
+        {
+          model: imageModel,
+          reasoningEffort,
+          webSearchEnabled,
+          mask: maskCheck.mask,
+          references: refCheck.refDetails || refCheck.refs,
+          inputFidelity: "high",
+        },
       );
 
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -180,7 +215,9 @@ export function registerEditRoutes(app, ctx) {
         revisedPrompt: revisedPrompt || null,
         promptMode: normalizedPromptMode,
         quality,
-        size,
+        size: outputSize,
+        requestedSize: sizeCheck.requestedSize,
+        sizeAdjusted: sizeCheck.adjusted,
         moderation,
         model: imageModel,
         format: "png",
@@ -192,6 +229,7 @@ export function registerEditRoutes(app, ctx) {
         webSearchEnabled,
       };
       await writeFile(join(ctx.config.storage.generatedDir, filename + ".json"), JSON.stringify(meta)).catch(() => {});
+      queueGeneratedDriveUpload(ctx, filename);
       finishHttpStatus = 200;
       finishMeta = { filename, imageChars: resultB64.length };
       logEvent("edit", "saved", {
@@ -209,6 +247,9 @@ export function registerEditRoutes(app, ctx) {
         provider: "oauth",
         model: imageModel,
         moderation,
+        size: outputSize,
+        requestedSize: sizeCheck.requestedSize,
+        sizeAdjusted: sizeCheck.adjusted,
         warnings: qualityWarnings,
         revisedPrompt: revisedPrompt || null,
         promptMode: normalizedPromptMode,
@@ -220,13 +261,28 @@ export function registerEditRoutes(app, ctx) {
       finishStatus = "error";
       finishHttpStatus = err.status || 500;
       finishErrorCode = fallbackCode || "EDIT_FAILED";
+      finishErrorMessage = err.message;
+      finishMeta = {
+        ...finishMeta,
+        errorDetails: {
+          error: err.message,
+          code: fallbackCode,
+          upstreamDebug: err.upstreamDebug || null,
+          requestId,
+        },
+      };
       logError("edit", "error", err, { requestId, code: finishErrorCode });
-      res.status(err.status || 500).json({ error: err.message, code: fallbackCode });
+      res.status(err.status || 500).json({
+        error: err.message,
+        code: fallbackCode,
+        upstreamDebug: err.upstreamDebug || null,
+      });
     } finally {
       finishJob(requestId, {
         status: finishStatus,
         httpStatus: finishHttpStatus,
         errorCode: finishErrorCode,
+        errorMessage: finishErrorMessage,
         meta: finishMeta,
       });
     }

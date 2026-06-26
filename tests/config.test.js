@@ -36,7 +36,6 @@ function loadConfig(env = {}) {
         log: c.log,
         features: c.features,
         cardNewsPlanner: c.cardNewsPlanner,
-        comfy: c.comfy,
         legacy: { PORT: m.PORT, OAUTH_PORT: m.OAUTH_PORT, BODY_LIMIT: m.BODY_LIMIT, NO_OAUTH_PROXY: m.NO_OAUTH_PROXY },
       }));
     });
@@ -65,7 +64,7 @@ test("config exposes default shape", () => {
   assert.equal(c.server.bodyLimit, "50mb");
   assert.equal(c.oauth.proxyPort, 10531);
   assert.equal(c.oauth.autoStart, true);
-  assert.equal(c.oauth.generationTimeoutMs, 400000);
+  assert.equal(c.oauth.generationTimeoutMs, 300000);
   assert.ok(c.oauth.researchSuffix.includes("If factual visual accuracy is required"));
   assert.ok(c.oauth.researchSuffix.includes("pass the user's prompt through"));
   assert.equal(c.limits.maxRefCount, 5);
@@ -84,9 +83,6 @@ test("config exposes default shape", () => {
   assert.equal(c.cardNewsPlanner.model, "gpt-5.4-mini");
   assert.equal(c.cardNewsPlanner.timeoutMs, 60000);
   assert.equal(c.cardNewsPlanner.deterministicFallback, false);
-  assert.equal(c.comfy.defaultUrl, "http://127.0.0.1:8188");
-  assert.equal(c.comfy.uploadTimeoutMs, 30000);
-  assert.equal(c.comfy.maxUploadBytes, 50 * 1024 * 1024);
   assert.equal(c.log.level, "info");
 });
 
@@ -106,26 +102,6 @@ test("env overrides win", () => {
   assert.equal(c.limits.maxRefCount, 7);
   assert.equal(c.oauth.autoStart, false);
   assert.equal(c.server.bodyLimit, "10mb");
-});
-
-test("comfy bridge config env overrides and invalid numeric fallbacks", () => {
-  const explicit = loadConfig({
-    IMA2_COMFY_URL: "http://localhost:9999",
-    IMA2_COMFY_UPLOAD_TIMEOUT_MS: "1234",
-    IMA2_COMFY_MAX_UPLOAD_BYTES: "5678",
-    IMA2_CONFIG_DIR: "/tmp/ima2-test-comfy-explicit",
-  });
-  assert.equal(explicit.comfy.defaultUrl, "http://localhost:9999");
-  assert.equal(explicit.comfy.uploadTimeoutMs, 1234);
-  assert.equal(explicit.comfy.maxUploadBytes, 5678);
-
-  const fallback = loadConfig({
-    IMA2_COMFY_UPLOAD_TIMEOUT_MS: "0",
-    IMA2_COMFY_MAX_UPLOAD_BYTES: "-1",
-    IMA2_CONFIG_DIR: "/tmp/ima2-test-comfy-fallback",
-  });
-  assert.equal(fallback.comfy.uploadTimeoutMs, 30000);
-  assert.equal(fallback.comfy.maxUploadBytes, 50 * 1024 * 1024);
 });
 
 test("card news feature is dev-only unless explicitly enabled", () => {
@@ -216,6 +192,6 @@ test("storage paths honor IMA2_CONFIG_DIR", () => {
   assert.equal(c.storage.configDir, configDir);
   assert.equal(c.storage.configFile, join(configDir, "config.json"));
   assert.ok(c.storage.dbPath.endsWith("sessions.db"));
-  assert.equal(c.storage.generatedDir, join(configDir, "generated"));
-  assert.equal(c.storage.trashDir, join(configDir, "generated", ".trash"));
+  assert.equal(c.storage.generatedDir, join(ROOT, "generated"));
+  assert.equal(c.storage.trashDir, join(ROOT, "generated", ".trash"));
 });

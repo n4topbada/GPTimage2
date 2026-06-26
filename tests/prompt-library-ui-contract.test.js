@@ -32,7 +32,7 @@ describe("prompt library UI contract", () => {
   });
 
   it("supports dialog-first prompt import with translated UI", () => {
-    const panel = readSource("ui/src/components/PromptLibraryPanel.tsx");
+    const panel = readSource("ui/src/components/prompt/PromptLibraryPanel.tsx");
     const store = readSource("ui/src/store/useAppStore.ts");
     const css = readSource("ui/src/index.css");
     const en = JSON.parse(readSource("ui/src/i18n/en.json"));
@@ -73,8 +73,8 @@ describe("prompt library UI contract", () => {
 
   it("preserves gallery favorite state from history payloads", () => {
     const store = readSource("ui/src/store/useAppStore.ts");
-    const gallery = readSource("ui/src/components/GalleryModal.tsx");
-    const tile = readSource("ui/src/components/GalleryImageTile.tsx");
+    const gallery = readSource("ui/src/components/gallery/GalleryModal.tsx");
+    const tile = readSource("ui/src/components/gallery/GalleryImageTile.tsx");
     const css = readSource("ui/src/index.css");
     const en = JSON.parse(readSource("ui/src/i18n/en.json"));
     const ko = JSON.parse(readSource("ui/src/i18n/ko.json"));
@@ -107,20 +107,20 @@ describe("prompt library UI contract", () => {
   });
 
   it("offers prompt insertion from both the list row and detail modal", () => {
-    const panel = readSource("ui/src/components/PromptLibraryPanel.tsx");
-    const row = readSource("ui/src/components/PromptLibraryRow.tsx");
-    const modal = readSource("ui/src/components/PromptDetailModal.tsx");
-    const composer = readSource("ui/src/components/PromptComposer.tsx");
-    const sidebar = readSource("ui/src/components/Sidebar.tsx");
+    const panel = readSource("ui/src/components/prompt/PromptLibraryPanel.tsx");
+    const row = readSource("ui/src/components/prompt/PromptLibraryRow.tsx");
+    const modal = readSource("ui/src/components/prompt/PromptDetailModal.tsx");
+    const composer = readSource("ui/src/components/prompt/PromptComposer.tsx");
+    const rightPanel = readSource("ui/src/components/layout/RightPanel.tsx");
     const store = readSource("ui/src/store/useAppStore.ts");
-    const actions = readSource("ui/src/components/ResultActions.tsx");
+    const actions = readSource("ui/src/components/result/ResultActions.tsx");
     const css = readSource("ui/src/index.css");
     const en = JSON.parse(readSource("ui/src/i18n/en.json"));
     const ko = JSON.parse(readSource("ui/src/i18n/ko.json"));
 
     assert.match(store, /type InsertedPrompt/);
     assert.match(store, /insertedPrompts: InsertedPrompt\[\]/);
-    assert.match(store, /function composePrompt\(mainPrompt: string, insertedPrompts: InsertedPrompt\[\]\): string/);
+    assert.match(store, /function composePrompt\(\s*mainPrompt: string,\s*insertedPrompts: InsertedPrompt\[\],\s*\): string/);
     assert.match(store, /const prompt = composePrompt\(s\.prompt, s\.insertedPrompts\)/);
 
     assert.match(panel, /insertPromptToComposer/);
@@ -145,8 +145,8 @@ describe("prompt library UI contract", () => {
     assert.match(actions, /id:\s*CANVAS_MODE_PROMPT_ID/);
     assert.match(actions, /name:\s*CANVAS_MODE_PROMPT_NAME/);
     assert.match(actions, /text:\s*CANVAS_MODE_PROMPT_TEXT/);
-    assert.match(sidebar, /rightPanelOpen/);
-    assert.match(sidebar, /toggleRightPanel/);
+    assert.match(rightPanel, /right-panel-workspace/);
+    assert.match(rightPanel, /<PromptComposer \/>/);
 
     assert.match(css, /\.prompt-library-row__insert/);
     assert.match(css, /\.prompt-detail-modal__insert/);
@@ -156,20 +156,21 @@ describe("prompt library UI contract", () => {
     assert.equal(en.promptLibrary.insert, "Insert");
     assert.equal(typeof en.promptLibrary.inserted, "string");
     assert.equal(typeof en.promptLibrary.removeInserted, "string");
-    assert.equal(ko.promptLibrary.insert, "삽입");
+    assert.equal(typeof ko.promptLibrary.insert, "string");
     assert.equal(typeof ko.promptLibrary.inserted, "string");
     assert.equal(typeof ko.promptLibrary.removeInserted, "string");
   });
 
   it("uses an icon button instead of a checkbox for prompt favorites filtering", () => {
-    const panel = readSource("ui/src/components/PromptLibraryPanel.tsx");
+    const panel = readSource("ui/src/components/prompt/PromptLibraryPanel.tsx");
     const css = readSource("ui/src/index.css");
 
     assert.match(panel, /className=\{`prompt-library-panel__filter-toggle\$\{favoritesOnly \? " active" : ""\}`\}/);
     assert.match(panel, /aria-pressed=\{favoritesOnly\}/);
     assert.match(panel, /onClick=\{\(\) => setFavoritesOnly\(\(v\) => !v\)\}/);
     assert.doesNotMatch(panel, /type="checkbox"/);
-    assert.doesNotMatch(panel, /prompt-library-panel__filter"/);
+    assert.doesNotMatch(panel, /prompt-library-panel__search/);
+    assert.doesNotMatch(panel, /placeholder=\{t\("promptLibrary\.search"\)\}/);
     assert.match(css, /\.prompt-library-panel__filter-toggle/);
     assert.match(css, /\.prompt-library-panel__filter-toggle\.active/);
   });

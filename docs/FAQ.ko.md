@@ -125,7 +125,7 @@ ima2 serve
 현재 버전은 사용자 데이터 폴더에 저장합니다.
 
 ```text
-macOS / Linux: ~/.ima2/generated
+기본값: <packageRoot>/generated
 Windows: %USERPROFILE%\.ima2\generated
 ```
 

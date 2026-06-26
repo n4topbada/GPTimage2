@@ -26,12 +26,9 @@
     "sessionRenameFailed": "Failed to rename session.",
     "sessionDeleteFailed": "Failed to delete session.",
     "promptRequired": "Enter a prompt.",
-    "nodeCreated": "Node {id} created ({elapsed}s)",
-    "nodeCreateFailed": "Node generation failed.",
     "generatedBatch": "Generated {count} images in {elapsed}s.",
     "generatedSingle": "Generated in {elapsed}s.",
     "generateFailed": "Generation failed.",
-    "sessionReloadedElsewhere": "Graph version changed, so the latest graph was reloaded.",
     "promptCopied": "Prompt copied",
     "imageCopied": "Copied to clipboard",
     "copyFailed": "Copy failed",
@@ -40,16 +37,37 @@
     "noPromptToFork": "No prompt to fork",
     "forkStarted": "Prompt imported. Edit and generate again.",
     "forkStartedNoPrompt": "Image attached as reference. Type a prompt and generate.",
-    "comfyExported": "Sent to ComfyUI as {filename}.",
-    "comfyExportInvalidUrl": "ComfyUI URL must be a local HTTP address.",
-    "comfyExportInvalidImage": "This saved image cannot be sent to ComfyUI.",
-    "comfyExportImageNotFound": "Saved image file was not found.",
-    "comfyExportFailed": "Could not upload image to ComfyUI."
+    "editSourceSet": "Image set as edit source."
   },
   "inflight": {
     "queued": "Queued",
     "streaming": "Generating",
-    "decoding": "Finalizing"
+    "decoding": "Finalizing",
+    "completed": "Done",
+    "failed": "Failed"
+  },
+  "failureLog": {
+    "title": "Failure Log",
+    "subtitle": "{count} recent failures",
+    "empty": "No failed generation logs yet.",
+    "openAria": "Open failure log",
+    "openTitle": "Open failure log",
+    "count": "{count} failed generations",
+    "unknownCode": "UNKNOWN",
+    "details": "Raw details",
+    "clear": "Clear logs",
+    "copyJson": "Copy JSON",
+    "copied": "Copied",
+    "case": {
+      "safety": "Safety / moderation",
+      "request": "Request / parameter",
+      "auth": "Auth / session",
+      "empty": "Empty image response",
+      "network": "Network / OAuth bridge",
+      "upstream": "Upstream server",
+      "unknown": "Unknown"
+    },
+    "prompt": "Prompt"
   },
   "size": {
     "title": "Size",
@@ -111,10 +129,12 @@
     "autoSub": "Standard filter",
     "lowLabel": "Low",
     "lowSub": "Relaxed filter",
-    "explain": "Auto uses the standard safety filter. Low relaxes limits so borderline prompts may pass through."
+    "explain": "Auto uses the standard safety filter. Low relaxes limits so borderline prompts may pass through.",
+    "fixedLow": "Moderation: low"
   },
   "format": {
-    "title": "Format"
+    "title": "Format",
+    "fixedPng": "PNG output"
   },
   "count": {
     "title": "Count",
@@ -199,16 +219,24 @@
     "refChipTitle": "Reference {n}",
     "refChipAlt": "Reference {n}",
     "refRemoveAria": "Remove reference {n}",
+    "editSourceTitle": "Edit source image",
+    "editSourceAlt": "Edit source",
+    "editSourceBadge": "Edit",
+    "editSourceRemoveAria": "Remove edit source",
     "placeholder": "Describe the image you want. Drag & drop or paste to attach reference images...",
     "placeholderWithRefs": "Describe what to do with the attached images...",
     "attach": "Attach",
     "attachTitle": "Attach reference images",
-    "useCurrent": "Use current",
+    "useCurrent": "Reference",
     "useCurrentTitle": "Use current result as a reference",
-    "directMode": "Direct",
+    "useCurrentAsEdit": "Edit",
+    "useCurrentAsEditTitle": "Use current result as the image to edit",
+    "modeToggleAria": "Prompt handling mode",
+    "enhanceMode": "보강",
+    "enhanceModeTitle": "Allow prompt enhancement and web search when needed",
+    "directMode": "원문",
     "directModeActive": "1:1 Direct on",
     "directModeTitle": "Pass prompt through verbatim (Direct mode)",
-    "hint": "Ctrl + Enter to generate",
     "dropHere": "Drop to attach as reference (up to {max})"
   },
   "canvas": {
@@ -343,73 +371,6 @@
     "favoriteAria": "Add to favorites",
     "unfavoriteAria": "Remove from favorites"
   },
-  "node": {
-    "empty": "Empty",
-    "pending": "Generating",
-    "reconciling": "Syncing",
-    "reconcilingPhase": "Syncing · {phase}",
-    "ready": "Done · {elapsed}s",
-    "readyWithSearch": "Done · {elapsed}s · searched {searches}",
-    "stale": "Stale",
-    "staleWithError": "Stale: {error}",
-    "assetMissing": "Asset missing",
-    "assetMissingWithError": "Asset missing: {error}",
-    "error": "Error: {error}",
-    "errorUnknown": "unknown",
-    "nodeImageAlt": "Node image",
-    "partialImageAlt": "Partial node image preview",
-    "noAsset": "No asset",
-    "stateStale": "State stale",
-    "noImage": "No image",
-    "editPromptPlaceholder": "Edit prompt...",
-    "promptPlaceholder": "Prompt...",
-    "regenerate": "Regen",
-    "newVariation": "New variant",
-    "generate": "Gen",
-    "generateTitle": "Generate node image",
-    "addChild": "Child",
-    "addChildTitle": "Add child node",
-    "duplicateBranch": "Branch",
-    "duplicateBranchTitle": "Duplicate as a new branch root",
-    "deleteTitle": "Delete",
-    "regenerateTitle": "Regenerate this node in place",
-    "newVariationTitle": "Create a new sibling variant under the same parent",
-    "parentImageRequired": "Generate the parent image first.",
-    "attachRef": "Attach",
-    "attachRefTitle": "Attach node reference images",
-    "refAlt": "Node reference {n}",
-    "removeRef": "Remove reference {n}",
-    "dropRefs": "Drop images here",
-    "nodeRefsUnsupportedForEdit": "Extra references are only supported on root nodes for now.",
-    "nodeRefsUsedWithParent": "Used together with the parent image.",
-    "classicRefsParkedTitle": "Classic references are parked",
-    "classicRefsParkedBody": "These images belong to the classic composer and are inactive in node mode.",
-    "clearParkedRefs": "Clear parked references"
-  },
-  "nodeBatch": {
-    "selectionOn": "Selecting",
-    "selectionOff": "Select",
-    "selectAll": "Select all",
-    "summary": "{selected} selected · {missing} missing · {stale} affected",
-    "generateMissing": "Generate missing",
-    "regenerateSelected": "Regenerate selected",
-    "stopRemaining": "Stop remaining",
-    "stopping": "Stopping",
-    "clear": "Clear",
-    "noneSelected": "No nodes selected.",
-    "parentRequired": "{count} selected node(s) need a ready parent image first.",
-    "nothingToRun": "No selected nodes need generation.",
-    "stopQueued": "The current node will finish, then the remaining queue will stop.",
-    "failed": "Stopped after {done}/{total} node(s).",
-    "finished": "Finished {done}/{total} node(s).",
-    "staleBecauseParentChanged": "An upstream node was regenerated; refresh this node when needed."
-  },
-  "edge": {
-    "disconnect": "Disconnect",
-    "disconnectTitle": "Disconnect selected edge",
-    "disconnected": "Connection removed.",
-    "parentConflict": "A node can only have one parent connection."
-  },
   "provider": {
     "authTitle": "Authentication",
     "apiLabel": "API Key",
@@ -435,13 +396,15 @@
     "download": "Download",
     "copyImage": "Copy image",
     "copyPrompt": "Copy prompt",
+    "hideImage": "Hide",
+    "hideImageTitle": "Clear the current image selection",
     "continueHere": "Continue here",
     "continueHereTitle": "Import this image's prompt and keep working",
+    "editThis": "Edit image",
+    "editThisTitle": "Use this image as the edit source",
     "delete": "Delete",
     "deleteTitle": "Move to trash",
     "more": "More",
-    "sendToComfyUI": "Send to ComfyUI",
-    "sendToComfyUITitle": "Upload this saved image to local ComfyUI",
     "permanentDelete": "Permanently delete",
     "permanentDeleteConfirm": "Permanently delete \"{filename}\"? This cannot be undone."
   },
@@ -458,12 +421,6 @@
     "firstGraph": "My first graph",
     "untitled": "Untitled session",
     "assetAbortedError": "Generation did not finish cleanly. Retry from this node."
-  },
-  "uiMode": {
-    "ariaLabel": "UI mode",
-    "classic": "Classic",
-    "node": "Node",
-    "cardNews": "Card News"
   },
   "cardNews": {
     "workspace": "Card News workspace",
@@ -588,8 +545,7 @@
   "sidebar": {
     "appName": "Image Generator",
     "imageModelLabel": "Model",
-    "imageModelAria": "Choose image model",
-    "nodeModeHint": "In node mode, click a node to edit its prompt and generate. Settings on the right panel (quality/size) apply to every new result."
+    "imageModelAria": "Choose image model"
   },
   "settings": {
     "openAria": "Open settings",

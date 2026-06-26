@@ -1,0 +1,195 @@
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useState,
+  type DragEvent as ReactDragEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
+import { useAppStore } from "../../store/useAppStore";
+import { useCreateBlankCanvas } from "../../hooks/useCreateBlankCanvas";
+import { ResultActions } from "./ResultActions";
+import { MultimodeSequencePreview } from "./MultimodeSequencePreview";
+import { useI18n } from "../../i18n";
+import { isEditableTarget } from "../../lib/domEvents";
+import type { GenerateItem } from "../../types";
+
+const LazyCanvasModeWorkspace = lazy(() =>
+  import("../canvas-mode").then((module) => ({
+    default: module.CanvasModeWorkspace,
+  })),
+);
+
+function getClassicImageSrc(image: GenerateItem): string {
+  const src = image.image?.startsWith("data:") ? image.image : (image.url ?? image.image);
+  if (!image.canvasVersion || !image.canvasMergedAt || src.startsWith("data:"))
+    return src;
+  const separator = src.includes("?") ? "&" : "?";
+  return `${src}${separator}canvasMergedAt=${image.canvasMergedAt}`;
+}
+
+export function Canvas() {
+  const currentImage = useAppStore((s) => s.currentImage);
+  const importLocalImageToHistory = useAppStore(
+    (s) => s.importLocalImageToHistory,
+  );
+  const multimodeSequence = useAppStore((s) => {
+    const id = s.multimodePreviewFlightId;
+    return id ? (s.multimodeSequences[id] ?? null) : null;
+  });
+  const selectHistoryShortcutTarget = useAppStore(
+    (s) => s.selectHistoryShortcutTarget,
+  );
+  const trashHistoryItem = useAppStore((s) => s.trashHistoryItem);
+  const permanentlyDeleteHistoryItemByShortcut = useAppStore(
+    (s) => s.permanentlyDeleteHistoryItemByShortcut,
+  );
+  const markGeneratedResultsSeen = useAppStore(
+    (s) => s.markGeneratedResultsSeen,
+  );
+  const canvasOpen = useAppStore((s) => s.canvasOpen);
+  const { t } = useI18n();
+  const [dropActive, setDropActive] = useState(false);
+  const { creatingBlankCanvas, createBlankCanvas } = useCreateBlankCanvas();
+
+
+  const handleViewerKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
+    if (event.key === "Delete" || event.key === "Backspace") {
+      if (!currentImage) return;
+      if (event.target !== event.currentTarget) return;
+      if (isEditableTarget(event.target)) return;
+      event.preventDefault();
+      if (event.shiftKey) {
+        void permanentlyDeleteHistoryItemByShortcut(currentImage);
+        return;
+      }
+      void trashHistoryItem(currentImage);
+      return;
+    }
+
+    if (
+      event.key !== "ArrowLeft" &&
+      event.key !== "ArrowRight" &&
+      event.key !== "Home" &&
+      event.key !== "End"
+    )
+      return;
+    if (event.target !== event.currentTarget) return;
+    if (isEditableTarget(event.target)) return;
+
+    event.preventDefault();
+    if (event.key === "ArrowLeft") selectHistoryShortcutTarget("previous");
+    else if (event.key === "ArrowRight") selectHistoryShortcutTarget("next");
+    else if (event.key === "Home") selectHistoryShortcutTarget("first");
+    else if (event.key === "End") selectHistoryShortcutTarget("last");
+  };
+
+  const handleViewerMouseDown = (event: MouseEvent<HTMLElement>): void => {
+    if (isEditableTarget(event.target)) return;
+    markGeneratedResultsSeen();
+    event.currentTarget.focus();
+  };
+
+  const handleCenterDragOver = useCallback(
+    (event: ReactDragEvent<HTMLElement>): void => {
+      if (!Array.from(event.dataTransfer.types).includes("Files")) return;
+      event.preventDefault();
+      setDropActive((prev) => (prev ? prev : true));
+    },
+    [],
+  );
+
+  const handleCenterDragLeave = useCallback(
+    (event: ReactDragEvent<HTMLElement>): void => {
+      if (event.currentTarget.contains(event.relatedTarget as Node | null))
+        return;
+      setDropActive(false);
+    },
+    [],
+  );
+
+  const handleCenterDrop = useCallback(
+    async (event: ReactDragEvent<HTMLElement>): Promise<void> => {
+      if (!Array.from(event.dataTransfer.types).includes("Files")) return;
+      event.preventDefault();
+      setDropActive(false);
+      const files = Array.from(event.dataTransfer.files).filter((file) =>
+        /^image\/(png|jpeg|webp)$/.test(file.type),
+      );
+      if (files.length === 0) return;
+      await importLocalImageToHistory(files[0]);
+    },
+    [importLocalImageToHistory],
+  );
+
+  if (canvasOpen && currentImage) {
+    return (
+      <Suspense
+        fallback={
+          <main className="canvas canvas--mode-open" aria-busy="true" />
+        }
+      >
+        <LazyCanvasModeWorkspace currentImage={currentImage} />
+      </Suspense>
+    );
+  }
+
+  const imageSrc = currentImage ? getClassicImageSrc(currentImage) : null;
+
+  return (
+    <main
+      className={`canvas${dropActive ? " canvas--drop-active" : ""}`}
+      onDragOver={handleCenterDragOver}
+      onDragLeave={handleCenterDragLeave}
+      onDrop={handleCenterDrop}
+    >
+      {dropActive ? (
+        <div className="canvas__drop-overlay" aria-hidden>
+          <span className="canvas__drop-hint">{t("canvas.drop.hint")}</span>
+        </div>
+      ) : null}
+      {multimodeSequence ? (
+        <MultimodeSequencePreview />
+      ) : currentImage && imageSrc ? (
+        <div
+          className="result-container visible"
+          tabIndex={0}
+          onMouseDown={handleViewerMouseDown}
+          onKeyDown={handleViewerKeyDown}
+          aria-label={t("canvas.imageViewerAria")}
+        >
+          <div className="canvas-annotation-frame">
+            <img
+              className="result-img"
+              key={`${currentImage.filename ?? currentImage.url ?? currentImage.image}:${currentImage.canvasMergedAt ?? ""}`}
+              src={imageSrc}
+              alt={t("canvas.resultAlt")}
+            />
+          </div>
+          <div className="result-sidebar">
+            <ResultActions />
+          </div>
+        </div>
+      ) : !currentImage ? (
+        <div className="canvas__blank-entry">
+          <div className="canvas__blank-sheet" aria-hidden />
+          <div className="canvas__blank-copy">
+            <strong>{t("canvas.blank.title")}</strong>
+            <span>{t("canvas.blank.subtitle")}</span>
+          </div>
+          <button
+            type="button"
+            className="canvas__blank-button"
+            onClick={() => void createBlankCanvas()}
+            disabled={creatingBlankCanvas}
+          >
+            {creatingBlankCanvas
+              ? t("canvas.blank.creating")
+              : t("canvas.blank.create")}
+          </button>
+        </div>
+      ) : null}
+    </main>
+  );
+}

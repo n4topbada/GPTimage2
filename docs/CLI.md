@@ -32,8 +32,6 @@ These work on most client commands:
 | `ima2 gen <prompt>` | Generate from the CLI |
 | `ima2 edit <file> --prompt <text>` | Edit an existing image |
 | `ima2 multimode <prompt>` | Multi-image SSE generation (streams `phase` / `partial` / `image` events) |
-| `ima2 node generate` | Node-mode generate (SSE; supports `--no-stream`) |
-| `ima2 node show <nodeId>` | Read node metadata |
 
 Generation flags include `--reasoning-effort {none\|low\|medium\|high\|xhigh}`, `--web-search` / `--no-web-search`, `--model`, `--mode`, `--moderation`, `--ref <file>` (repeatable, up to 5), `-q low|medium|high`, `-n <count>`, `-o <file>`.
 
@@ -41,7 +39,6 @@ Generation flags include `--reasoning-effort {none\|low\|medium\|high\|xhigh}`, 
 ima2 gen "a poster of a samurai cat" --model gpt-5.4 --reasoning-effort high
 ima2 edit input.png --prompt "make it rainy" --web-search
 ima2 multimode "two cats playing" -n 2
-ima2 node generate --node n_abc --prompt "add neon lights" --no-stream
 ```
 
 ## History and metadata
@@ -142,7 +139,6 @@ Allowed keys (whitelist):
 imageModels.default          imageModels.reasoningEffort
 log.level                    features.cardNews
 cardNewsPlanner.{enabled,model,timeoutMs,deterministicFallback}
-comfy.{defaultUrl,uploadTimeoutMs,maxUploadBytes}
 storage.{generatedDir,generatedDirName}
 server.{port,host,bodyLimit}
 oauth.{proxyPort,statusTimeoutMs,restartDelayMs}
@@ -151,12 +147,6 @@ history.{defaultPageSize,maxPageCap}
 ```
 
 To change `provider` / `apiKey`, run `ima2 setup` or `ima2 login` instead.
-
-## Other
-
-| Command | Description |
-|---|---|
-| `ima2 comfy export <filename>` | Export a ComfyUI workflow (`POST /api/comfy/export-image`) |
 
 ## Discovery
 
